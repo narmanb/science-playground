@@ -7,6 +7,9 @@ on:
       - "tools/blender/**"
       - ".github/workflows/blender-assets.yml"
 
+permissions:
+  contents: write
+
 env:
   BLENDER_VERSION: "4.5.13"
   BLENDER_ARCHIVE: "blender-4.5.13-linux-x64.tar.xz"
@@ -50,6 +53,20 @@ jobs:
         run: |
           test -s build/blender/cockpit_blockout.glb
           ls -lh build/blender/cockpit_blockout.glb
+
+      - name: Persist generated GLB
+        run: |
+          mkdir -p assets/generated
+          cp build/blender/cockpit_blockout.glb assets/generated/cockpit_blockout.glb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/generated/cockpit_blockout.glb
+          if git diff --cached --quiet; then
+            echo "Generated cockpit asset is unchanged."
+          else
+            git commit -m "Update generated Blender cockpit asset"
+            git push
+          fi
 
       - name: Upload Blender assets
         uses: actions/upload-artifact@v4
