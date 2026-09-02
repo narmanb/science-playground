@@ -1,9 +1,10 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/procedural_system.gd" id="1_system"]
 [ext_resource type="Script" path="res://scripts/ship_controller.gd" id="2_ship"]
 [ext_resource type="Script" path="res://scripts/flight_hud.gd" id="3_hud"]
 [ext_resource type="PackedScene" path="res://assets/generated/cockpit_blockout.glb" id="4_cockpit"]
+[ext_resource type="Script" path="res://scripts/main.gd" id="5_main"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -17,6 +18,7 @@ radius = 1.15
 height = 3.8
 
 [node name="Main" type="Node3D"]
+script = ExtResource("5_main")
 
 [node name="SpaceEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_space")
