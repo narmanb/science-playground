@@ -44,9 +44,9 @@ void fragment() {
     float ridge = abs(fract((crust * 2.2 + detail) * 4.0) - 0.5) * 2.0;
     float fissure = 1.0 - smoothstep(0.035, 0.12, ridge);
 
-    vec3 basalt = vec3(0.16, 0.075, 0.052);
-    vec3 iron = vec3(0.46, 0.15, 0.055);
-    vec3 dust = vec3(0.60, 0.28, 0.095);
+    vec3 basalt = vec3(0.19, 0.090, 0.060);
+    vec3 iron = vec3(0.50, 0.17, 0.060);
+    vec3 dust = vec3(0.64, 0.31, 0.105);
     vec3 color = mix(basalt, iron, smoothstep(0.35, 0.74, crust));
     color = mix(color, dust, smoothstep(0.68, 0.90, detail) * 0.48);
 
@@ -54,7 +54,7 @@ void fragment() {
     // claim that Veyr's 439 K equilibrium-temperature surface is molten.
     vec3 hot = vec3(1.0, 0.20, 0.025);
     float hot_mask = fissure * smoothstep(0.62, 0.91, detail);
-    EMISSION = color * 0.045 + hot * hot_mask * 0.58;
+    EMISSION = color * 0.095 + hot * hot_mask * 0.58;
     ALBEDO = color;
     ROUGHNESS = mix(0.97, 0.82, hot_mask);
     METALLIC = 0.025;
