@@ -1,10 +1,11 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/procedural_system.gd" id="1_system"]
 [ext_resource type="Script" path="res://scripts/ship_controller.gd" id="2_ship"]
 [ext_resource type="Script" path="res://scripts/flight_hud.gd" id="3_hud"]
 [ext_resource type="PackedScene" path="res://assets/generated/cockpit_blockout.glb" id="4_cockpit"]
 [ext_resource type="Script" path="res://scripts/main.gd" id="5_main"]
+[ext_resource type="Script" path="res://scripts/visual_enhancer.gd" id="6_visual"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -31,6 +32,9 @@ shadow_enabled = false
 
 [node name="AlienSystem" type="Node3D" parent="."]
 script = ExtResource("1_system")
+
+[node name="VisualEnhancer" type="Node" parent="."]
+script = ExtResource("6_visual")
 
 [node name="Ship" type="RigidBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 310, 0, 130)
