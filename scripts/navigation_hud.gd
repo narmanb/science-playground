@@ -33,7 +33,7 @@ func _process(_delta: float) -> void:
 		_refresh_targets.call_deferred()
 		return
 	var distance := ship.global_position.distance_to(target.global_position)
-	nav_label.text = "NAV %s   •   %.1f km" % [_target_name(target), distance]
+	nav_label.text = "NAV %s   •   %.1f u" % [_target_name(target), distance]
 	queue_redraw()
 
 
