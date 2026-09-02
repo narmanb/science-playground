@@ -2,19 +2,24 @@ extends Control
 class_name NavigationHUD
 
 @export var ship_path: NodePath
+@export var all_target_hold_seconds := 0.65
 
 const PREFERRED_ORDER := ["NYSA", "VEYR", "ORUN", "KHARIS", "THALE", "ASTERION"]
 
 var ship: ShipController
+var science_log: ScienceLogHUD
 var nav_button: Button
 var nav_label: Label
 var targets: Array[Node3D] = []
 var target_index := -1
+var cycle_mode := "SCI"
+var nav_press_started_msec := -1
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ship = get_node(ship_path) as ShipController
+	science_log = get_parent().get_node_or_null("ScienceLogHUD") as ScienceLogHUD
 	_build_ui()
 	_layout_ui()
 	_refresh_targets.call_deferred()
@@ -33,15 +38,21 @@ func _process(_delta: float) -> void:
 		_refresh_targets.call_deferred()
 		return
 	var distance := ship.global_position.distance_to(target.global_position)
-	nav_label.text = "NAV %s   •   %.1f u" % [_target_name(target), distance]
+	nav_label.text = "NAV %s   •   %.1f u   •   %s" % [_target_name(target), distance, cycle_mode]
 	queue_redraw()
 
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_A:
-		cycle_target()
+	if event is InputEventJoypadButton and event.pressed:
+		if event.button_index == JOY_BUTTON_A:
+			cycle_science_target()
+		elif event.button_index == JOY_BUTTON_LEFT_SHOULDER:
+			cycle_target()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_N:
-		cycle_target()
+		if event.shift_pressed:
+			cycle_target()
+		else:
+			cycle_science_target()
 
 
 func _draw() -> void:
@@ -74,10 +85,12 @@ func _draw() -> void:
 
 func _build_ui() -> void:
 	nav_button = Button.new()
-	nav_button.text = "NAV"
+	nav_button.text = "NAV SCI"
 	nav_button.focus_mode = Control.FOCUS_NONE
 	nav_button.add_theme_font_size_override("font_size", 18)
-	nav_button.pressed.connect(cycle_target)
+	nav_button.tooltip_text = "Tap: next unfinished science target. Hold: cycle every target."
+	nav_button.button_down.connect(_on_nav_button_down)
+	nav_button.button_up.connect(_on_nav_button_up)
 	add_child(nav_button)
 
 	nav_label = Label.new()
@@ -93,8 +106,8 @@ func _layout_ui() -> void:
 	var button_h := clampf(size.y * 0.075, 54.0, 78.0)
 	nav_button.position = Vector2(size.x - button_w * 2.15 - 34.0, 22.0)
 	nav_button.size = Vector2(button_w, button_h)
-	nav_label.position = Vector2(size.x * 0.34, 58.0)
-	nav_label.size = Vector2(size.x * 0.32, 32.0)
+	nav_label.position = Vector2(size.x * 0.32, 58.0)
+	nav_label.size = Vector2(size.x * 0.36, 32.0)
 
 
 func _refresh_targets() -> void:
@@ -103,6 +116,14 @@ func _refresh_targets() -> void:
 	# this HUD directly to either implementation.
 	for _frame in 3:
 		await get_tree().process_frame
+
+	if science_log == null:
+		science_log = get_parent().get_node_or_null("ScienceLogHUD") as ScienceLogHUD
+
+	var previous_name := ""
+	var previous := current_target()
+	if previous != null:
+		previous_name = _target_name(previous)
 
 	targets.clear()
 	for candidate in get_tree().get_nodes_in_group("scannable"):
@@ -121,12 +142,36 @@ func _refresh_targets() -> void:
 		return
 
 	target_index = 0
+	var preferred_name := previous_name if not previous_name.is_empty() else "NYSA"
 	for i in targets.size():
-		if _target_name(targets[i]) == "NYSA":
+		if _target_name(targets[i]) == preferred_name:
 			target_index = i
 			break
 	_update_button()
 	queue_redraw()
+
+
+func cycle_science_target() -> void:
+	if targets.is_empty():
+		_refresh_targets.call_deferred()
+		return
+	if science_log == null:
+		science_log = get_parent().get_node_or_null("ScienceLogHUD") as ScienceLogHUD
+
+	var start_index := target_index
+	for offset in range(1, targets.size() + 1):
+		var candidate_index := (start_index + offset) % targets.size()
+		var candidate := targets[candidate_index]
+		if _needs_science(candidate):
+			target_index = candidate_index
+			cycle_mode = "SCI"
+			_update_button()
+			queue_redraw()
+			return
+
+	# Once the catalog is complete there is no unfinished target to prioritize,
+	# so NAV naturally becomes an ordinary all-body cycle again.
+	cycle_target()
 
 
 func cycle_target() -> void:
@@ -134,8 +179,21 @@ func cycle_target() -> void:
 		_refresh_targets.call_deferred()
 		return
 	target_index = (target_index + 1) % targets.size()
+	cycle_mode = "ALL"
 	_update_button()
 	queue_redraw()
+
+
+func select_target_by_name(body_name: String, mode := "SCI") -> bool:
+	var wanted := body_name.to_upper()
+	for i in targets.size():
+		if _target_name(targets[i]) == wanted:
+			target_index = i
+			cycle_mode = mode
+			_update_button()
+			queue_redraw()
+			return true
+	return false
 
 
 func current_target() -> Node3D:
@@ -145,9 +203,34 @@ func current_target() -> Node3D:
 	return target if is_instance_valid(target) else null
 
 
+func _needs_science(target: Node3D) -> bool:
+	if target == null:
+		return false
+	var max_tier := int(target.get_meta("scan_profile_max_tier", 0))
+	var achieved := -1
+	if science_log != null:
+		achieved = int(science_log.discoveries.get(_target_name(target), -1))
+	return achieved < max_tier
+
+
+func _on_nav_button_down() -> void:
+	nav_press_started_msec = Time.get_ticks_msec()
+
+
+func _on_nav_button_up() -> void:
+	if nav_press_started_msec < 0:
+		return
+	var held_seconds := float(Time.get_ticks_msec() - nav_press_started_msec) / 1000.0
+	nav_press_started_msec = -1
+	if held_seconds >= all_target_hold_seconds:
+		cycle_target()
+	else:
+		cycle_science_target()
+
+
 func _update_button() -> void:
 	var target := current_target()
-	nav_button.text = "NAV\n" + (_target_name(target) if target != null else "NONE")
+	nav_button.text = "NAV %s\n%s" % [cycle_mode, _target_name(target) if target != null else "NONE"]
 
 
 func _target_name(target: Node3D) -> String:
