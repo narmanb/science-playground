@@ -123,6 +123,34 @@ func _capture_preview() -> void:
 		get_tree().quit(1)
 		return
 
+	# Simulate a previously completed Remote survey on Veyr without writing it to
+	# disk. The ship remains well outside the Spectral envelope, so the objective
+	# must expose the exact <=12R boundary and relative approach state. Giving the
+	# frozen CI ship a stored velocity toward Veyr makes the radial-motion cue
+	# deterministic without changing normal gameplay physics.
+	science_log.discoveries["VEYR"] = 0
+	var toward_veyr := science_target.global_position - ship.global_position
+	if toward_veyr.length_squared() > 0.0001:
+		ship.linear_velocity = toward_veyr.normalized() * 6.0
+	for _frame in 6:
+		await get_tree().process_frame
+	var approach_text := science_objective.objective_label.text
+	if not approach_text.contains("APPROACH FOR SPECTRAL PASS"):
+		push_error("Science approach objective did not request Veyr's Spectral pass.")
+		get_tree().quit(1)
+		return
+	if not approach_text.contains("ENVELOPE ≤12.0 R") or not approach_text.contains("NOW"):
+		push_error("Science approach objective did not expose the Spectral envelope geometry.")
+		get_tree().quit(1)
+		return
+	if not approach_text.contains("CLOSING"):
+		push_error("Science approach objective did not report deterministic relative closing motion.")
+		get_tree().quit(1)
+		return
+	if not _save_view(CAPTURE_DIR + "/approach.png"):
+		get_tree().quit(1)
+		return
+
 	# The remaining views are visual QA only. Freeze and reposition the test ship
 	# starward of each world so its illuminated hemisphere faces the camera. None
 	# of these teleports exist during normal gameplay.
