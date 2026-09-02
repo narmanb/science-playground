@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/procedural_system.gd" id="1_system"]
 [ext_resource type="Script" path="res://scripts/ship_controller.gd" id="2_ship"]
@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://scripts/proximity_hud.gd" id="11_proximity"]
 [ext_resource type="Script" path="res://scripts/science_scan_profile.gd" id="12_scan_profile"]
 [ext_resource type="Script" path="res://scripts/science_log_hud.gd" id="13_science_log"]
+[ext_resource type="Script" path="res://scripts/stellar_lighting_controller.gd" id="14_stellar_light"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -39,6 +40,9 @@ shadow_enabled = false
 
 [node name="AlienSystem" type="Node3D" parent="."]
 script = ExtResource("1_system")
+
+[node name="StellarLightingController" type="Node" parent="."]
+script = ExtResource("14_stellar_light")
 
 [node name="VisualEnhancer" type="Node" parent="."]
 script = ExtResource("6_visual")
