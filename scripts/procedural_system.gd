@@ -1,0 +1,228 @@
+extends Node3D
+class_name ProceduralSystem
+
+@export var asteroid_count := 420
+@export var ring_particle_count := 700
+@export var seed := 731942
+
+var rng := RandomNumberGenerator.new()
+var orbiters: Array[Dictionary] = []
+
+
+func _ready() -> void:
+	rng.seed = seed
+	_build_system()
+
+
+func _process(delta: float) -> void:
+	for orbiter in orbiters:
+		var pivot: Node3D = orbiter["pivot"]
+		pivot.rotate_y(orbiter["speed"] * delta)
+
+
+func _build_system() -> void:
+	_create_star()
+	_create_planet_and_moon()
+	_create_asteroid_belt()
+	_create_background_stars()
+
+
+func _create_star() -> void:
+	var star := MeshInstance3D.new()
+	star.name = "Asterion"
+	var mesh := SphereMesh.new()
+	mesh.radius = 28.0
+	mesh.height = 56.0
+	mesh.radial_segments = 48
+	mesh.rings = 24
+	star.mesh = mesh
+	star.material_override = _emissive_material(Color(1.0, 0.54, 0.16), 5.5)
+	star.set_meta("scan_name", "ASTERION")
+	star.set_meta("scan_class", "K-TYPE ORANGE DWARF / PROTOTYPE")
+	star.set_meta("scan_note", "Primary star. Scientific values are placeholders until the calculation layer is connected.")
+	add_child(star)
+
+	var light := OmniLight3D.new()
+	light.name = "AsterionLight"
+	light.omni_range = 850.0
+	light.light_energy = 6.0
+	light.shadow_enabled = false
+	light.light_color = Color(1.0, 0.71, 0.48)
+	add_child(light)
+
+
+func _create_planet_and_moon() -> void:
+	var planet_pivot := Node3D.new()
+	planet_pivot.name = "PlanetOrbit"
+	add_child(planet_pivot)
+	orbiters.append({"pivot": planet_pivot, "speed": 0.006})
+
+	var planet := _make_sphere_body(
+		"Nysa",
+		22.0,
+		Vector3(310.0, 0.0, 0.0),
+		Color(0.17, 0.36, 0.42),
+		0.72,
+		0.18
+	)
+	planet.set_meta("scan_name", "NYSA")
+	planet.set_meta("scan_class", "OCEANIC SUPER-EARTH / PROTOTYPE")
+	planet.set_meta("scan_note", "Dense atmosphere and global ocean candidate. Final properties will be generated from the science model.")
+	planet_pivot.add_child(planet)
+	_add_atmosphere(planet, 23.2, Color(0.16, 0.56, 0.9, 0.12))
+	_add_ring_system(planet)
+
+	var moon_pivot := Node3D.new()
+	moon_pivot.name = "MoonOrbit"
+	moon_pivot.position = planet.position
+	planet_pivot.add_child(moon_pivot)
+	orbiters.append({"pivot": moon_pivot, "speed": 0.05})
+
+	var moon := _make_sphere_body(
+		"Thale",
+		7.0,
+		Vector3(48.0, 2.0, 0.0),
+		Color(0.38, 0.35, 0.33),
+		0.96,
+		0.02
+	)
+	moon.set_meta("scan_name", "THALE")
+	moon.set_meta("scan_class", "ROCKY MOON / PROTOTYPE")
+	moon.set_meta("scan_note", "Airless captured moon with a visibly irregular mineral surface planned for the Blender asset pass.")
+	moon_pivot.add_child(moon)
+
+
+func _make_sphere_body(body_name: String, radius: float, position_value: Vector3, color: Color, roughness: float, metallic: float) -> MeshInstance3D:
+	var body := MeshInstance3D.new()
+	body.name = body_name
+	body.position = position_value
+	var sphere := SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius * 2.0
+	sphere.radial_segments = 48
+	sphere.rings = 24
+	body.mesh = sphere
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = roughness
+	material.metallic = metallic
+	body.material_override = material
+	return body
+
+
+func _add_atmosphere(parent_body: MeshInstance3D, radius: float, color: Color) -> void:
+	var atmosphere := MeshInstance3D.new()
+	atmosphere.name = "Atmosphere"
+	var sphere := SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius * 2.0
+	sphere.radial_segments = 48
+	sphere.rings = 24
+	atmosphere.mesh = sphere
+	var material := StandardMaterial3D.new()
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_color = color
+	material.cull_mode = BaseMaterial3D.CULL_FRONT
+	atmosphere.material_override = material
+	parent_body.add_child(atmosphere)
+
+
+func _add_ring_system(parent_body: MeshInstance3D) -> void:
+	var rings := MultiMeshInstance3D.new()
+	rings.name = "NysaRings"
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	var pebble := BoxMesh.new()
+	pebble.size = Vector3(0.32, 0.08, 0.16)
+	var ring_material := StandardMaterial3D.new()
+	ring_material.albedo_color = Color(0.56, 0.65, 0.67)
+	ring_material.roughness = 0.82
+	pebble.material = ring_material
+	multimesh.mesh = pebble
+	multimesh.instance_count = ring_particle_count
+
+	for i in ring_particle_count:
+		var angle := rng.randf_range(0.0, TAU)
+		var radius := rng.randf_range(31.0, 49.0)
+		var vertical := rng.randfn(0.0, 0.28)
+		var position_value := Vector3(cos(angle) * radius, vertical, sin(angle) * radius)
+		var basis := Basis.from_euler(Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU))
+		var scale_value := rng.randf_range(0.45, 1.7)
+		basis = basis.scaled(Vector3.ONE * scale_value)
+		multimesh.set_instance_transform(i, Transform3D(basis, position_value))
+
+	rings.multimesh = multimesh
+	parent_body.add_child(rings)
+
+
+func _create_asteroid_belt() -> void:
+	var asteroids := MultiMeshInstance3D.new()
+	asteroids.name = "OuterAsteroidBelt"
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	var asteroid := SphereMesh.new()
+	asteroid.radius = 1.0
+	asteroid.height = 2.0
+	asteroid.radial_segments = 8
+	asteroid.rings = 4
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(0.17, 0.15, 0.14)
+	material.roughness = 1.0
+	asteroid.material = material
+	multimesh.mesh = asteroid
+	multimesh.instance_count = asteroid_count
+
+	for i in asteroid_count:
+		var angle := rng.randf_range(0.0, TAU)
+		var radius := rng.randf_range(470.0, 610.0)
+		var y := rng.randfn(0.0, 12.0)
+		var position_value := Vector3(cos(angle) * radius, y, sin(angle) * radius)
+		var basis := Basis.from_euler(Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU))
+		basis = basis.scaled(Vector3(
+			rng.randf_range(0.7, 3.4),
+			rng.randf_range(0.6, 2.3),
+			rng.randf_range(0.7, 3.4)
+		))
+		multimesh.set_instance_transform(i, Transform3D(basis, position_value))
+
+	asteroids.multimesh = multimesh
+	add_child(asteroids)
+
+
+func _create_background_stars() -> void:
+	var stars := MultiMeshInstance3D.new()
+	stars.name = "BackgroundStars"
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	var star_mesh := SphereMesh.new()
+	star_mesh.radius = 0.55
+	star_mesh.height = 1.1
+	star_mesh.radial_segments = 5
+	star_mesh.rings = 3
+	star_mesh.material = _emissive_material(Color(0.82, 0.88, 1.0), 2.5)
+	multimesh.mesh = star_mesh
+	multimesh.instance_count = 260
+
+	for i in 260:
+		var direction := Vector3(
+			rng.randf_range(-1.0, 1.0),
+			rng.randf_range(-1.0, 1.0),
+			rng.randf_range(-1.0, 1.0)
+		).normalized()
+		var distance := rng.randf_range(950.0, 1250.0)
+		var scale_value := rng.randf_range(0.45, 1.9)
+		multimesh.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * scale_value), direction * distance))
+
+	stars.multimesh = multimesh
+	add_child(stars)
+
+
+func _emissive_material(color: Color, energy: float) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.emission_enabled = true
+	material.emission = color
+	material.emission_energy_multiplier = energy
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	return material
