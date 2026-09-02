@@ -30,9 +30,14 @@ func _capture_preview() -> void:
 		get_tree().quit(1)
 		return
 
+	# Give only the CI capture ship an obvious diagonal drift. Normal gameplay
+	# still starts at rest. This forces the true-velocity marker away from the
+	# nose reticle so the screenshot verifies inertial navigation feedback too.
+	ship.linear_velocity = Vector3(7.0, 1.5, -7.0)
+
 	# Capture during the scan rather than after it. This validates target
-	# projection, scan signal/progress math, the sensor brackets, and the
-	# underlying scientific body registry in one rendered frame.
+	# projection, scan signal/progress math, the sensor brackets, velocity-vector
+	# projection, and the scientific body registry in one rendered frame.
 	for _frame in 52:
 		await get_tree().process_frame
 
