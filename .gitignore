@@ -1,0 +1,22 @@
+# Godot
+.godot/
+android/build/
+*.tmp
+
+# Exported builds
+builds/
+exports/
+*.apk
+*.aab
+
+# Blender working/generated files
+*.blend1
+*.blend2
+*.blend@
+tools/blender/output/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
