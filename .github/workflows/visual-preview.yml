@@ -1,0 +1,58 @@
+name: Render Visual Preview
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "project.godot"
+      - "scenes/**"
+      - "scripts/**"
+      - "assets/**"
+      - "data/**"
+      - ".github/workflows/visual-preview.yml"
+
+jobs:
+  render-preview:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Godot 4.7.2
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: false
+
+      - name: Ensure virtual display
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Import project
+        run: godot --headless --path . --editor --quit
+
+      - name: Render cockpit preview
+        env:
+          SCIENCE_PLAYGROUND_CAPTURE: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          mkdir -p build/preview
+          xvfb-run -a godot \
+            --path . \
+            --rendering-method gl_compatibility \
+            --resolution 1280x720
+          test -s build/preview/main.png
+          file build/preview/main.png
+
+      - name: Upload visual preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: science-playground-visual-preview
+          path: build/preview/main.png
+          if-no-files-found: error
+          retention-days: 14
