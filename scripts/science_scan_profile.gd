@@ -76,6 +76,11 @@ func _bind_profiles() -> void:
 		})
 		target.set_meta("scan_profile_tier", -1)
 		target.set_meta("scan_profile_max_tier", 2)
+		# Publish the same envelope thresholds used by tier assignment so cockpit
+		# guidance can describe the real observation boundary without duplicating
+		# magic numbers in another script.
+		target.set_meta("scan_profile_spectral_clearance_radii", spectral_clearance_radii)
+		target.set_meta("scan_profile_proximity_clearance_radii", proximity_clearance_radii)
 
 	if profiled_targets.is_empty():
 		push_warning("Science scan profile did not find any manifest-backed scan targets.")
