@@ -36,9 +36,9 @@ func _process(_delta: float) -> void:
 		objective_label.visible = false
 		return
 
-	# Scanner feedback already owns the pilot's attention while a lock is active.
-	# Suppressing this line keeps the cockpit legible instead of stacking prompts.
-	if flight_hud.scan_target != null:
+	# Scanner feedback and the catalog each own the pilot's attention while open.
+	# Suppressing this line in either state keeps the cockpit from stacking text.
+	if flight_hud.scan_target != null or (science_log.log_panel != null and science_log.log_panel.visible):
 		objective_label.visible = false
 		return
 
