@@ -147,7 +147,44 @@ func _capture_preview() -> void:
 		push_error("Science approach objective did not report deterministic relative closing motion.")
 		get_tree().quit(1)
 		return
+	if not approach_text.contains("THRUST STOP") or not approach_text.contains("BRAKE MARGIN"):
+		push_error("Science approach objective did not expose the physics-derived stopping estimate and positive braking margin.")
+		get_tree().quit(1)
+		return
 	if not _save_view(CAPTURE_DIR + "/approach.png"):
+		get_tree().quit(1)
+		return
+
+	# Move the frozen CI ship just outside Veyr's Spectral boundary and give it a
+	# closing speed whose thrust-only stopping distance is longer than the
+	# remaining gap. This must flip the same instrument from margin to BRAKE NOW.
+	var veyr_radius := float(science_target.get_meta("collision_radius", 0.0))
+	var spectral_radii := float(science_target.get_meta("scan_profile_spectral_clearance_radii", 0.0))
+	if veyr_radius <= 0.0 or spectral_radii <= 0.0:
+		push_error("Science braking test could not read Veyr radius/envelope metadata.")
+		get_tree().quit(1)
+		return
+	var outward := ship.global_position - science_target.global_position
+	if outward.length_squared() < 0.001:
+		outward = Vector3.RIGHT
+	outward = outward.normalized()
+	var braking_gap := 8.0
+	ship.global_position = science_target.global_position + outward * (veyr_radius * (1.0 + spectral_radii) + braking_gap)
+	ship.linear_velocity = -outward * 32.0
+	ship.angular_velocity = Vector3.ZERO
+	ship.look_at(science_target.global_position, Vector3.UP)
+	for _frame in 8:
+		await get_tree().process_frame
+	var braking_text := science_objective.objective_label.text
+	if not braking_text.contains("BRAKE NOW") or not science_objective.braking_required:
+		push_error("Science braking guidance did not transition to BRAKE NOW when stopping distance exceeded the envelope gap.")
+		get_tree().quit(1)
+		return
+	if not braking_text.contains("THRUST STOP") or not braking_text.contains("ENVELOPE IN"):
+		push_error("BRAKE NOW state did not expose stopping distance and remaining envelope distance.")
+		get_tree().quit(1)
+		return
+	if not _save_view(CAPTURE_DIR + "/braking.png"):
 		get_tree().quit(1)
 		return
 
