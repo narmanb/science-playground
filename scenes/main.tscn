@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/procedural_system.gd" id="1_system"]
 [ext_resource type="Script" path="res://scripts/ship_controller.gd" id="2_ship"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scripts/celestial_collision_controller.gd" id="10_collision"]
 [ext_resource type="Script" path="res://scripts/proximity_hud.gd" id="11_proximity"]
 [ext_resource type="Script" path="res://scripts/science_scan_profile.gd" id="12_scan_profile"]
+[ext_resource type="Script" path="res://scripts/science_log_hud.gd" id="13_science_log"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -120,3 +121,13 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("3_hud")
 ship_path = NodePath("../../Ship")
+
+[node name="ScienceLogHUD" type="Control" parent="HUDLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("13_science_log")
+flight_hud_path = NodePath("../FlightHUD")
