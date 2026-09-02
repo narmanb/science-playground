@@ -124,11 +124,13 @@ func _capture_preview() -> void:
 		return
 
 	# Simulate a previously completed Remote survey on Veyr without writing it to
-	# disk. The ship remains well outside the Spectral envelope, so the objective
-	# must expose the exact <=12R boundary and relative approach state. Giving the
-	# frozen CI ship a stored velocity toward Veyr makes the radial-motion cue
-	# deterministic without changing normal gameplay physics.
+	# disk. Face the target so the safe-margin test exercises 100% fore/aft radial
+	# braking authority deterministically, then give the frozen CI ship a modest
+	# stored closing velocity.
 	science_log.discoveries["VEYR"] = 0
+	ship.look_at(science_target.global_position, Vector3.UP)
+	for _frame in 2:
+		await get_tree().process_frame
 	var toward_veyr := science_target.global_position - ship.global_position
 	if toward_veyr.length_squared() > 0.0001:
 		ship.linear_velocity = toward_veyr.normalized() * 6.0
@@ -147,8 +149,8 @@ func _capture_preview() -> void:
 		push_error("Science approach objective did not report deterministic relative closing motion.")
 		get_tree().quit(1)
 		return
-	if not approach_text.contains("THRUST STOP") or not approach_text.contains("BRAKE MARGIN"):
-		push_error("Science approach objective did not expose the physics-derived stopping estimate and positive braking margin.")
+	if not approach_text.contains("MAIN AXIS 100%") or not approach_text.contains("THRUST STOP") or not approach_text.contains("BRAKE MARGIN"):
+		push_error("Science approach objective did not expose aligned thrust stopping distance and positive braking margin.")
 		get_tree().quit(1)
 		return
 	if not _save_view(CAPTURE_DIR + "/approach.png"):
@@ -156,8 +158,8 @@ func _capture_preview() -> void:
 		return
 
 	# Move the frozen CI ship just outside Veyr's Spectral boundary and give it a
-	# closing speed whose thrust-only stopping distance is longer than the
-	# remaining gap. This must flip the same instrument from margin to BRAKE NOW.
+	# closing speed whose aligned thrust-only stopping distance is longer than the
+	# remaining gap. This must flip the same instrument from margin to emergency.
 	var veyr_radius := float(science_target.get_meta("collision_radius", 0.0))
 	var spectral_radii := float(science_target.get_meta("scan_profile_spectral_clearance_radii", 0.0))
 	if veyr_radius <= 0.0 or spectral_radii <= 0.0:
@@ -176,12 +178,12 @@ func _capture_preview() -> void:
 	for _frame in 8:
 		await get_tree().process_frame
 	var braking_text := science_objective.objective_label.text
-	if not braking_text.contains("BRAKE NOW") or not science_objective.braking_required:
-		push_error("Science braking guidance did not transition to BRAKE NOW when stopping distance exceeded the envelope gap.")
+	if not braking_text.contains("BRAKE / ALIGN NOW") or not science_objective.braking_required:
+		push_error("Science braking guidance did not transition to emergency when stopping distance exceeded the envelope gap.")
 		get_tree().quit(1)
 		return
-	if not braking_text.contains("THRUST STOP") or not braking_text.contains("ENVELOPE IN"):
-		push_error("BRAKE NOW state did not expose stopping distance and remaining envelope distance.")
+	if not braking_text.contains("MAIN AXIS 100%") or not braking_text.contains("STOP") or not braking_text.contains("ENVELOPE IN"):
+		push_error("Emergency braking state did not expose aligned stopping distance and remaining envelope distance.")
 		get_tree().quit(1)
 		return
 	if not _save_view(CAPTURE_DIR + "/braking.png"):
