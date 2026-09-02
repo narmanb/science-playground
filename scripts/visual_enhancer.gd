@@ -2,6 +2,9 @@ extends Node
 
 const NYSA_SURFACE := preload("res://shaders/nysa_surface.gdshader")
 const NYSA_CLOUDS := preload("res://shaders/nysa_clouds.gdshader")
+const VEYR_SURFACE := preload("res://shaders/veyr_surface.gdshader")
+const ORUN_SURFACE := preload("res://shaders/orun_surface.gdshader")
+const KHARIS_SURFACE := preload("res://shaders/kharis_surface.gdshader")
 
 
 func _ready() -> void:
@@ -10,6 +13,10 @@ func _ready() -> void:
 
 func _apply_visuals() -> void:
 	await get_tree().process_frame
+	_apply_surface("../AlienSystem/VeyrOrbit/Veyr", VEYR_SURFACE)
+	_apply_surface("../AlienSystem/OrunOrbit/Orun", ORUN_SURFACE)
+	_apply_surface("../AlienSystem/KharisOrbit/Kharis", KHARIS_SURFACE)
+
 	var nysa := get_node_or_null("../AlienSystem/PlanetOrbit/Nysa") as MeshInstance3D
 	if nysa == null:
 		push_warning("Visual enhancer could not find Nysa.")
@@ -39,3 +46,13 @@ func _apply_visuals() -> void:
 	cloud_material.shader = NYSA_CLOUDS
 	clouds.material_override = cloud_material
 	nysa.add_child(clouds)
+
+
+func _apply_surface(node_path: NodePath, shader: Shader) -> void:
+	var body := get_node_or_null(node_path) as MeshInstance3D
+	if body == null:
+		push_warning("Visual enhancer could not find %s." % node_path)
+		return
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	body.material_override = material
