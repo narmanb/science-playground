@@ -37,17 +37,17 @@ void fragment() {
     float storm = fbm(vec2(UV.x * 10.0 + warp, UV.y * 5.5));
 
     float band_mix = bands * 0.25 + fine * 0.07 + 0.52;
-    vec3 deep = vec3(0.12, 0.25, 0.34);
-    vec3 mid = vec3(0.24, 0.47, 0.57);
-    vec3 pale = vec3(0.43, 0.65, 0.69);
+    vec3 deep = vec3(0.13, 0.27, 0.36);
+    vec3 mid = vec3(0.25, 0.49, 0.59);
+    vec3 pale = vec3(0.45, 0.67, 0.71);
     vec3 color = mix(deep, mid, smoothstep(0.22, 0.78, band_mix));
     color = mix(color, pale, smoothstep(0.76, 0.95, storm) * 0.30);
 
     float polar = smoothstep(0.68, 1.0, abs(latitude));
-    color = mix(color, vec3(0.33, 0.55, 0.64), polar * 0.32);
+    color = mix(color, vec3(0.35, 0.57, 0.66), polar * 0.32);
 
     ALBEDO = color;
-    EMISSION = color * 0.025;
+    EMISSION = color * 0.038;
     ROUGHNESS = 0.86;
     METALLIC = 0.0;
 }
