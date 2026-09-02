@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/procedural_system.gd" id="1_system"]
 [ext_resource type="Script" path="res://scripts/ship_controller.gd" id="2_ship"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/main.gd" id="5_main"]
 [ext_resource type="Script" path="res://scripts/visual_enhancer.gd" id="6_visual"]
 [ext_resource type="Script" path="res://scripts/velocity_vector_hud.gd" id="7_velocity"]
+[ext_resource type="Script" path="res://scripts/navigation_hud.gd" id="8_navigation"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -74,6 +75,16 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("7_velocity")
+ship_path = NodePath("../../Ship")
+
+[node name="NavigationHUD" type="Control" parent="HUDLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("8_navigation")
 ship_path = NodePath("../../Ship")
 
 [node name="FlightHUD" type="Control" parent="HUDLayer"]
