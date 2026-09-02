@@ -58,11 +58,11 @@ func _objective_for(target: Node3D) -> String:
 
 	if max_tier <= 0:
 		if achieved >= 0:
-			return "SCIENCE %s   •   SURVEY COMPLETE   •   CYCLE NAV FOR NEXT TARGET" % body_name
+			return "SCIENCE %s   •   SURVEY COMPLETE   •   TAP NAV FOR NEXT SCIENCE" % body_name
 		return "SCIENCE %s   •   SURVEY READY   •   CENTER TARGET + SCAN" % body_name
 
 	if achieved >= max_tier:
-		return "SCIENCE %s   •   FULL SURVEY COMPLETE   •   CYCLE NAV FOR NEXT WORLD" % body_name
+		return "SCIENCE %s   •   FULL SURVEY COMPLETE   •   TAP NAV FOR NEXT SCIENCE" % body_name
 
 	var current_zone := clampi(int(target.get_meta("scan_profile_tier", 0)), 0, max_tier)
 	var zone_name := _tier_name(current_zone)
