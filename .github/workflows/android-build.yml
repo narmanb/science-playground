@@ -8,6 +8,7 @@ on:
       - "export_presets.cfg"
       - "scenes/**"
       - "scripts/**"
+      - "shaders/**"
       - "assets/**"
       - "data/**"
       - ".github/workflows/android-build.yml"
