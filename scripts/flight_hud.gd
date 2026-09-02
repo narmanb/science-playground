@@ -2,6 +2,9 @@ extends Control
 class_name FlightHUD
 
 @export var ship_path: NodePath
+@export var scan_duration := 3.2
+@export var scan_acquire_dot := 0.94
+@export var scan_hold_dot := 0.90
 
 var ship: ShipController
 var left_touch_id := -1
@@ -18,6 +21,10 @@ var mode_button: Button
 var lock_button: Button
 var scan_button: Button
 
+var scan_target: Node3D = null
+var scan_progress := 0.0
+var scan_signal := 0.0
+
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -26,6 +33,8 @@ func _ready() -> void:
 	ship.flight_mode_changed.connect(_on_mode_changed)
 	ship.inertial_lock_changed.connect(_on_lock_changed)
 	ship.scan_requested.connect(_on_scan_requested)
+	_on_mode_changed(ShipController.MODE_NAMES[ship.flight_mode])
+	_on_lock_changed(ship.inertial_lock)
 	_layout_ui()
 	queue_redraw()
 
@@ -36,7 +45,7 @@ func _notification(what: int) -> void:
 		queue_redraw()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if ship == null:
 		return
 	var speed := ship.linear_velocity.length()
@@ -45,6 +54,10 @@ func _process(_delta: float) -> void:
 		speed,
 		"ON" if ship.inertial_lock else "OFF"
 	]
+
+	if scan_target != null:
+		_update_scan(delta)
+		queue_redraw()
 
 
 func _input(event: InputEvent) -> void:
@@ -96,6 +109,43 @@ func _draw() -> void:
 
 	draw_circle(left_center + Vector2(left_value.x, -left_value.y) * pad_radius, 22.0, active_color)
 	draw_circle(right_center + right_value * pad_radius, 22.0, active_color)
+
+	var viewport_size := get_viewport_rect().size
+	var reticle_center := viewport_size * 0.5
+	draw_arc(reticle_center, 30.0, 0.0, TAU, 40, Color(0.30, 0.74, 0.8, 0.34), 1.5)
+	draw_line(reticle_center + Vector2(-48.0, 0.0), reticle_center + Vector2(-20.0, 0.0), line_color, 1.5)
+	draw_line(reticle_center + Vector2(20.0, 0.0), reticle_center + Vector2(48.0, 0.0), line_color, 1.5)
+	draw_line(reticle_center + Vector2(0.0, -48.0), reticle_center + Vector2(0.0, -20.0), line_color, 1.5)
+	draw_line(reticle_center + Vector2(0.0, 20.0), reticle_center + Vector2(0.0, 48.0), line_color, 1.5)
+
+	if scan_target != null and is_instance_valid(scan_target):
+		var camera := _camera()
+		if camera != null and not camera.is_position_behind(scan_target.global_position):
+			var marker := camera.unproject_position(scan_target.global_position)
+			var target_color := line_color.lerp(active_color, scan_signal)
+			_draw_target_brackets(marker, target_color)
+			draw_arc(
+				reticle_center,
+				38.0,
+				-PI * 0.5,
+				-PI * 0.5 + TAU * scan_progress,
+				48,
+				target_color,
+				3.0
+			)
+
+
+func _draw_target_brackets(center: Vector2, color: Color) -> void:
+	var radius := 30.0
+	var arm := 11.0
+	draw_line(center + Vector2(-radius, -radius), center + Vector2(-radius + arm, -radius), color, 2.0)
+	draw_line(center + Vector2(-radius, -radius), center + Vector2(-radius, -radius + arm), color, 2.0)
+	draw_line(center + Vector2(radius, -radius), center + Vector2(radius - arm, -radius), color, 2.0)
+	draw_line(center + Vector2(radius, -radius), center + Vector2(radius, -radius + arm), color, 2.0)
+	draw_line(center + Vector2(-radius, radius), center + Vector2(-radius + arm, radius), color, 2.0)
+	draw_line(center + Vector2(-radius, radius), center + Vector2(-radius, radius - arm), color, 2.0)
+	draw_line(center + Vector2(radius, radius), center + Vector2(radius - arm, radius), color, 2.0)
+	draw_line(center + Vector2(radius, radius), center + Vector2(radius, radius - arm), color, 2.0)
 
 
 func _build_cockpit_controls() -> void:
@@ -160,8 +210,8 @@ func _layout_ui() -> void:
 
 	status_label.position = Vector2(size.x * 0.25, 18.0)
 	status_label.size = Vector2(size.x * 0.5, 44.0)
-	scan_label.position = Vector2(size.x * 0.29, size.y * 0.72)
-	scan_label.size = Vector2(size.x * 0.42, size.y * 0.22)
+	scan_label.position = Vector2(size.x * 0.29, size.y * 0.70)
+	scan_label.size = Vector2(size.x * 0.42, size.y * 0.24)
 
 	var button_w := clampf(size.x * 0.09, 110.0, 180.0)
 	var button_h := clampf(size.y * 0.09, 60.0, 94.0)
@@ -214,32 +264,123 @@ func _on_lock_changed(enabled: bool) -> void:
 
 
 func _on_scan_requested() -> void:
-	var camera := ship.get_node_or_null("CameraRig/Camera3D") as Camera3D
+	if scan_target != null:
+		_cancel_scan("SCAN ABORTED")
+		return
+
+	var camera := _camera()
 	if camera == null:
 		scan_label.text = "SCAN ERROR — CAMERA OFFLINE"
 		return
 
+	var best_target := _find_scan_target(camera, scan_acquire_dot)
+	if best_target == null:
+		scan_label.text = "SCAN: CENTER A BODY INSIDE THE SENSOR RETICLE"
+		return
+
+	scan_target = best_target
+	scan_progress = 0.0
+	scan_signal = 0.0
+	scan_button.text = "ABORT"
+	scan_label.text = "%s\nSENSOR LOCK ACQUIRED\nHOLD TARGET IN RETICLE" % _target_name(scan_target)
+	queue_redraw()
+
+
+func _update_scan(delta: float) -> void:
+	if scan_target == null or not is_instance_valid(scan_target):
+		_cancel_scan("SCAN LOST — TARGET INVALID")
+		return
+
+	var camera := _camera()
+	if camera == null:
+		_cancel_scan("SCAN LOST — CAMERA OFFLINE")
+		return
+
+	var to_target := scan_target.global_position - camera.global_position
+	if to_target.length_squared() < 0.0001:
+		_cancel_scan("SCAN LOST — RANGE ERROR")
+		return
+
+	var direction := to_target.normalized()
+	var forward := -camera.global_basis.z
+	var alignment_dot := forward.dot(direction)
+	var alignment := clampf((alignment_dot - scan_hold_dot) / maxf(1.0 - scan_hold_dot, 0.001), 0.0, 1.0)
+	var angular_stability := 1.0 - clampf(ship.angular_velocity.length() / 2.0, 0.0, 1.0)
+	scan_signal = alignment * lerpf(0.55, 1.0, angular_stability)
+
+	if alignment_dot >= scan_hold_dot:
+		scan_progress += delta * scan_signal / maxf(scan_duration, 0.1)
+	else:
+		scan_progress -= delta * 0.14
+	scan_progress = clampf(scan_progress, 0.0, 1.0)
+
+	var distance := camera.global_position.distance_to(scan_target.global_position)
+	var guidance := "HOLD STEADY"
+	if alignment_dot < scan_hold_dot:
+		guidance = "REACQUIRE — CENTER TARGET"
+	elif scan_signal < 0.45:
+		guidance = "REDUCE ROTATION"
+
+	scan_label.text = "%s   |   RANGE %.1f km\nSIGNAL %d%%   ANALYSIS %d%%\n%s" % [
+		_target_name(scan_target),
+		distance,
+		int(round(scan_signal * 100.0)),
+		int(round(scan_progress * 100.0)),
+		guidance,
+	]
+
+	if scan_progress >= 1.0:
+		_complete_scan(camera)
+
+
+func _complete_scan(camera: Camera3D) -> void:
+	if scan_target == null:
+		return
+	var target := scan_target
+	var distance := camera.global_position.distance_to(target.global_position)
+	scan_label.text = "%s\n%s\nRANGE %.1f km\n%s" % [
+		_target_name(target),
+		str(target.get_meta("scan_class", "UNCLASSIFIED")),
+		distance,
+		str(target.get_meta("scan_note", "No additional data.")),
+	]
+	scan_target = null
+	scan_progress = 0.0
+	scan_signal = 0.0
+	scan_button.text = "SCAN"
+	queue_redraw()
+
+
+func _cancel_scan(message: String) -> void:
+	scan_target = null
+	scan_progress = 0.0
+	scan_signal = 0.0
+	scan_button.text = "SCAN"
+	scan_label.text = message
+	queue_redraw()
+
+
+func _find_scan_target(camera: Camera3D, minimum_dot: float) -> Node3D:
 	var best_target: Node3D = null
-	var best_score := 0.965
+	var best_score := minimum_dot
+	var forward := -camera.global_basis.z
 	for candidate in get_tree().get_nodes_in_group("scannable"):
 		if not candidate is Node3D:
 			continue
 		var target := candidate as Node3D
-		var direction := (target.global_position - camera.global_position).normalized()
-		var forward := -camera.global_basis.z
-		var score := forward.dot(direction)
+		var delta := target.global_position - camera.global_position
+		if delta.length_squared() < 0.0001:
+			continue
+		var score := forward.dot(delta.normalized())
 		if score > best_score:
 			best_score = score
 			best_target = target
+	return best_target
 
-	if best_target == null:
-		scan_label.text = "SCAN: NO BODY INSIDE SENSOR CONE"
-		return
 
-	var distance := camera.global_position.distance_to(best_target.global_position)
-	scan_label.text = "%s\n%s\nRANGE %.1f km\n%s" % [
-		str(best_target.get_meta("scan_name", best_target.name)),
-		str(best_target.get_meta("scan_class", "UNCLASSIFIED")),
-		distance,
-		str(best_target.get_meta("scan_note", "No additional data."))
-	]
+func _target_name(target: Node3D) -> String:
+	return str(target.get_meta("scan_name", target.name))
+
+
+func _camera() -> Camera3D:
+	return ship.get_node_or_null("CameraRig/Camera3D") as Camera3D
