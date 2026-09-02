@@ -1,4 +1,4 @@
-"""Procedural cockpit blockout generator for Science Playground.
+"""Procedural cockpit generator for Science Playground.
 
 Run inside Blender:
     blender --background --python tools/blender/generate_cockpit_blockout.py -- --output cockpit_blockout.glb
@@ -92,21 +92,57 @@ def add_torus(name, location, major_radius, minor_radius, mat, rotation=(0.0, 0.
 
 
 def create_cockpit():
-    hull = material("Hull", (0.035, 0.055, 0.07), metallic=0.82, roughness=0.28)
-    dark = material("DarkPanels", (0.012, 0.018, 0.022), metallic=0.45, roughness=0.42)
-    teal = material("TealDisplay", (0.015, 0.08, 0.09), metallic=0.2, roughness=0.25,
-                    emission=(0.02, 0.62, 0.7), emission_strength=2.2)
-    amber = material("AmberControl", (0.12, 0.045, 0.008), metallic=0.15, roughness=0.32,
-                     emission=(1.0, 0.23, 0.035), emission_strength=2.0)
+    hull = material("Hull", (0.032, 0.045, 0.055), metallic=0.74, roughness=0.34)
+    dark = material("DarkPanels", (0.012, 0.018, 0.022), metallic=0.38, roughness=0.48)
+    trim = material("Trim", (0.065, 0.085, 0.095), metallic=0.7, roughness=0.26)
+    teal = material(
+        "TealInstrument",
+        (0.01, 0.055, 0.06),
+        metallic=0.15,
+        roughness=0.32,
+        emission=(0.01, 0.23, 0.25),
+        emission_strength=0.75,
+    )
+    screen = material(
+        "ScannerScreen",
+        (0.012, 0.07, 0.075),
+        metallic=0.05,
+        roughness=0.22,
+        emission=(0.015, 0.17, 0.19),
+        emission_strength=0.52,
+    )
+    amber = material(
+        "AmberControl",
+        (0.09, 0.035, 0.006),
+        metallic=0.1,
+        roughness=0.38,
+        emission=(0.38, 0.075, 0.008),
+        emission_strength=0.62,
+    )
 
-    # Main lower dashboard shell.
+    # Main lower dashboard shell and recessed instrument bay.
     add_box("DashboardLower", (0.0, -1.05, -2.2), (2.45, 0.22, 0.8), hull, bevel=0.12,
             rotation=(math.radians(-9), 0, 0))
-    add_box("DashboardInset", (0.0, -0.83, -2.36), (1.45, 0.035, 0.42), teal, bevel=0.03,
+    add_box("DashboardInset", (0.0, -0.83, -2.36), (1.48, 0.04, 0.42), dark, bevel=0.035,
             rotation=(math.radians(-9), 0, 0))
+    add_box("DashboardLip", (0.0, -0.69, -2.31), (1.62, 0.045, 0.055), trim, bevel=0.025,
+            rotation=(math.radians(-9), 0, 0))
+
+    # Small discrete indicators rather than one giant glowing slab.
+    for i in range(5):
+        x = -0.76 + i * 0.38
+        add_box(
+            f"StatusIndicator_{i:02d}",
+            (x, -0.78, -2.25),
+            (0.11, 0.025, 0.07),
+            teal if i != 3 else amber,
+            bevel=0.018,
+            rotation=(math.radians(-9), 0, 0),
+        )
 
     # Heavy canopy architecture; deliberately unusual, more submarine than fighter jet.
     add_box("CanopyCrossbar", (0.0, 1.15, -2.65), (2.8, 0.09, 0.11), hull, bevel=0.05)
+    add_box("CanopyInnerBrace", (0.0, 0.92, -2.60), (1.9, 0.04, 0.05), trim, bevel=0.025)
     for side in (-1, 1):
         add_box(
             f"CanopyStrut_{side:+d}",
@@ -117,6 +153,14 @@ def create_cockpit():
             rotation=(0, 0, math.radians(16 * side)),
         )
         add_box(
+            f"CanopyInnerStrut_{side:+d}",
+            (2.02 * side, 0.18, -2.50),
+            (0.035, 1.45, 0.055),
+            trim,
+            bevel=0.02,
+            rotation=(0, 0, math.radians(16 * side)),
+        )
+        add_box(
             f"SideConsole_{side:+d}",
             (1.72 * side, -0.82, -1.35),
             (0.62, 0.22, 1.0),
@@ -124,11 +168,21 @@ def create_cockpit():
             bevel=0.09,
             rotation=(math.radians(-7), 0, math.radians(-4 * side)),
         )
+        # Three recessed side-console keys on each side.
+        for key_i in range(3):
+            add_box(
+                f"SideKey_{side:+d}_{key_i}",
+                (1.70 * side, -0.63 + key_i * 0.18, -1.15 - key_i * 0.08),
+                (0.10, 0.025, 0.065),
+                teal if key_i != 1 else amber,
+                bevel=0.015,
+                rotation=(math.radians(-7), 0, math.radians(-4 * side)),
+            )
 
     # Vector cage: a physical ring surrounding a movable thrust puck.
     add_torus("VectorCageRing", (-1.42, -0.58, -1.88), 0.42, 0.035, teal,
               rotation=(math.radians(72), 0, 0))
-    add_cylinder("VectorPuck", (-1.42, -0.58, -1.80), 0.15, 0.10, hull,
+    add_cylinder("VectorPuck", (-1.42, -0.58, -1.80), 0.15, 0.10, trim,
                  rotation=(math.radians(72), 0, 0))
 
     # Attitude ring: separate rotation control rather than another identical stick.
@@ -140,6 +194,8 @@ def create_cockpit():
     # Inertial damping dial with a deliberately oversized mechanical knob.
     add_cylinder("InertialDampingDial", (0.0, -0.62, -1.72), 0.22, 0.12, amber,
                  rotation=(math.radians(72), 0, 0))
+    add_torus("InertialDampingBezel", (0.0, -0.64, -1.77), 0.28, 0.025, trim,
+              rotation=(math.radians(72), 0, 0))
 
     # Guarded inertial-lock switch.
     add_box("LockSwitchBase", (0.62, -0.61, -1.69), (0.22, 0.07, 0.28), dark, bevel=0.04,
@@ -147,11 +203,13 @@ def create_cockpit():
     add_box("LockSwitchHandle", (0.62, -0.47, -1.66), (0.045, 0.17, 0.045), amber, bevel=0.025,
             rotation=(math.radians(20), 0, 0))
 
-    # Scanner slab in the center rather than a conventional HUD-only reticle.
-    add_box("ScannerDisplay", (0.0, -0.18, -2.78), (0.72, 0.36, 0.035), teal, bevel=0.04,
-            rotation=(math.radians(4), 0, 0))
+    # Scanner lives low in the dashboard, leaving the forward window unobstructed.
+    add_box("ScannerBezel", (0.0, -0.88, -2.18), (0.74, 0.31, 0.055), trim, bevel=0.055,
+            rotation=(math.radians(-12), 0, 0))
+    add_box("ScannerDisplay", (0.0, -0.84, -2.13), (0.62, 0.25, 0.025), screen, bevel=0.035,
+            rotation=(math.radians(-12), 0, 0))
 
-    # Overhead switch bank.
+    # Overhead switch bank; switches glow only subtly now.
     add_box("OverheadPanel", (0.0, 1.48, -1.85), (1.25, 0.10, 0.46), dark, bevel=0.07,
             rotation=(math.radians(16), 0, 0))
     for i in range(7):
