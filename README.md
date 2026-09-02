@@ -12,7 +12,13 @@ A Godot 4 Android-first experimental space exploration project. This is not inte
 - D-pad / RCS burst translation on physical controllers
 - Touchscreen vector and attitude pads
 - Active sensor scanning that requires keeping a target aligned long enough to complete analysis
+- Three useful science depths on major worlds: **Remote / Spectral / Proximity**
+- Persistent science catalog that remembers the best completed survey depth for every body
+- Science-priority navigation that can skip fully surveyed targets
+- Contextual science objective derived from the selected NAV target, approach zone, and saved catalog progress
 - Trajectory-based navigation: destination bearing and actual velocity are separate instruments
+- Celestial collision shells plus altitude, relative closing-speed, and contact-time warnings
+- Manifest-driven planetary rotation periods represented at accelerated visual time
 - Procedural Asterion system with four primary worlds, a moon, rings, and an asteroid belt
 - Blender Python tooling and GitHub Actions for reproducible modular 3D assets
 - Scientific-generation layer kept separate from rendering so calculated physical values can drive artistic worlds without pretending the art layer is a physical simulation
@@ -29,7 +35,7 @@ The current deterministic science manifest contains:
 - **Kharis** — outer ringed ice giant
 - An asteroid belt between Orun and Kharis
 
-Mass, radius, surface gravity, semimajor axis, orbital period, and equilibrium-temperature values are generated in real physical units and stored in `data/asterion_system.json`. Godot uses a compressed playable spatial scale. Atmospheric compositions and some geological/cloud details are explicitly art-direction placeholders rather than claims produced by the physical model.
+Mass, radius, surface gravity, semimajor axis, orbital period, and equilibrium-temperature values are generated in real physical units and stored in `data/asterion_system.json`. Godot uses a compressed playable spatial scale, so cockpit-space distances and velocities are deliberately labeled **u** and **u/s** rather than falsely presented as kilometers or meters per second. Atmospheric compositions and some geological/cloud details are explicitly art-direction placeholders rather than claims produced by the physical model.
 
 The committed manifest is checked in CI against `tools/science/generate_system_manifest.py`; validation fails if the generated and committed scientific data diverge.
 
@@ -43,9 +49,21 @@ The HUD intentionally separates three different concepts:
 
 In Vector and Drift modes, the nose and velocity vector can become dramatically separated. Reaching a destination therefore means changing the trajectory, not merely rotating until the target is centered. The system is deliberately avoiding an autopilot-style “point at icon and hold forward” loop.
 
-## Scanning
+Close approaches add another piloting problem. The proximity instrument reports clearance above a body's collision shell, relative radial closing speed against the body's own orbital motion, and estimated contact time when appropriate.
 
-SCAN is an active maneuver rather than an instant information button. Center a celestial body in the sensor cone, begin the scan, and maintain alignment while analysis accumulates. Excess rotation reduces signal quality; losing the target causes the analysis to decay. A completed scan reports the calculated physical metadata attached to that body.
+## Science loop
+
+SCAN is an active maneuver rather than an instant information button. Center a celestial body in the sensor cone, begin the scan, and maintain alignment while analysis accumulates. Excess rotation reduces signal quality; losing the target causes the analysis to decay.
+
+Major worlds expose progressively deeper observations as the ship approaches:
+
+1. **Remote Survey** — bulk physical and orbital information.
+2. **Spectral Pass** — adds rotation and atmosphere-model detail.
+3. **Proximity Pass** — resolves local pressure/ring/model-status details.
+
+The best completed depth is written to `user://science_discoveries.json`, so catalog progress survives app restarts. A contextual cockpit objective uses that saved progress and the current approach zone to indicate whether a scan is ready or whether a closer pass is required.
+
+Science-priority NAV searches for the next body whose best completed survey is still below its available maximum. The normal all-body cycle remains available for revisiting completed worlds.
 
 ## Controls
 
@@ -57,7 +75,9 @@ SCAN is an active maneuver rather than an instant information button. Center a c
 - ROLL ◀ / ▶: roll
 - MODE: cycle Cruise / Vector / Drift
 - LOCK: toggle Inertial Lock
-- NAV: cycle selected celestial destination
+- NAV tap: next unfinished science target
+- NAV hold: cycle all celestial targets
+- LOG: open/close persistent science catalog
 - SCAN: acquire/abort sensor analysis
 
 ### Gamepad / Retroid
@@ -68,7 +88,9 @@ SCAN is an active maneuver rather than an instant information button. Center a c
 - D-pad: discrete RCS translation bursts
 - R1: Inertial Lock
 - Y: cycle flight mode
-- A: cycle navigation target
+- A: next unfinished science target
+- L1: cycle all navigation targets
+- B: open/close science catalog
 - X: scan / abort scan
 
 ### Keyboard development controls
@@ -79,7 +101,9 @@ SCAN is an active maneuver rather than an instant information button. Center a c
 - R/F: vertical translation
 - M: cycle flight mode
 - L: Inertial Lock
-- N: cycle navigation target
+- N: next unfinished science target
+- Shift+N: cycle all navigation targets
+- C: open/close science catalog
 - X: scan
 
 ## Automated development pipeline
@@ -90,7 +114,10 @@ GitHub Actions currently:
 - regenerates and verifies the scientific system manifest;
 - runs Blender to generate the cockpit GLB;
 - builds an Android debug APK;
-- renders a live cockpit smoke-test frame that exercises scanning, navigation, and inertial velocity feedback;
+- renders an active-flight smoke-test frame exercising scanning, navigation, and inertial velocity feedback;
+- completes a real Nysa proximity scan and renders the persistent catalog;
+- verifies the post-scan objective changes to full-survey-complete;
+- verifies science-priority NAV then skips completed Nysa and selects Veyr;
 - renders close inspection frames for Veyr, Orun, and Kharis so planetary shader changes can be reviewed without installing every intermediate APK.
 
 ## Project layout
