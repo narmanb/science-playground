@@ -21,8 +21,22 @@ jobs:
       - name: Verify engine
         run: godot --version
 
-      - name: Import project and parse scripts
-        run: godot --headless --path . --editor --quit
+      - name: Import project and reject script errors
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --editor --quit 2>&1 | tee /tmp/godot-import.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script" /tmp/godot-import.log; then
+            echo "Godot reported a GDScript load/parse error."
+            exit 1
+          fi
 
-      - name: Boot main scene
-        run: godot --headless --path . --quit-after 3
+      - name: Boot main scene and reject runtime script errors
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --quit-after 3 2>&1 | tee /tmp/godot-boot.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script" /tmp/godot-boot.log; then
+            echo "Godot reported a runtime script error."
+            exit 1
+          fi
