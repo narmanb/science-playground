@@ -56,16 +56,23 @@ jobs:
 
       - name: Persist generated GLB
         run: |
-          mkdir -p assets/generated
-          cp build/blender/cockpit_blockout.glb assets/generated/cockpit_blockout.glb
+          cp build/blender/cockpit_blockout.glb /tmp/cockpit_blockout.glb
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # The runner may have started before other normal commits landed. Rebase the
+          # generated binary onto the current branch head instead of racing those commits.
+          git fetch origin main
+          git checkout -B main origin/main
+          mkdir -p assets/generated
+          cp /tmp/cockpit_blockout.glb assets/generated/cockpit_blockout.glb
           git add assets/generated/cockpit_blockout.glb
+
           if git diff --cached --quiet; then
             echo "Generated cockpit asset is unchanged."
           else
             git commit -m "Update generated Blender cockpit asset"
-            git push
+            git push origin main
           fi
 
       - name: Upload Blender assets
