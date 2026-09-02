@@ -151,6 +151,44 @@ func _capture_preview() -> void:
 		get_tree().quit(1)
 		return
 
+	# Prove that explicit NAV intent outranks a better-centered competing body only
+	# while the selected target remains inside the legitimate acquisition cone.
+	# This temporary decoy exists exclusively in CI and is removed immediately.
+	var camera := ship.get_node_or_null("CameraRig/Camera3D") as Camera3D
+	if camera == null:
+		push_error("NAV-aware scan test could not find the cockpit camera.")
+		get_tree().quit(1)
+		return
+	var target_direction := (science_target.global_position - camera.global_position).normalized()
+	var side_direction := target_direction.cross(Vector3.UP)
+	if side_direction.length_squared() < 0.001:
+		side_direction = target_direction.cross(Vector3.RIGHT)
+	side_direction = side_direction.normalized()
+	var offset_angle := deg_to_rad(10.0)
+	var offset_forward := (target_direction * cos(offset_angle) + side_direction * sin(offset_angle)).normalized()
+	ship.look_at(ship.global_position + offset_forward * 100.0, Vector3.UP)
+	for _frame in 2:
+		await get_tree().process_frame
+
+	camera = ship.get_node_or_null("CameraRig/Camera3D") as Camera3D
+	var decoy := Node3D.new()
+	decoy.name = "CIScanDecoy"
+	decoy.set_meta("scan_name", "CI DECOY")
+	decoy.set_meta("scan_class", "QA TARGET")
+	decoy.set_meta("scan_note", "Temporary CI scan-acquisition competitor.")
+	add_child(decoy)
+	decoy.add_to_group("scannable")
+	decoy.global_position = camera.global_position + (-camera.global_basis.z) * 100.0
+	await get_tree().process_frame
+
+	var preferred_acquisition := hud._find_scan_target(camera, hud.scan_acquire_dot)
+	if preferred_acquisition != science_target:
+		push_error("Scanner allowed a centered competitor to steal acquisition from the valid selected NAV target.")
+		get_tree().quit(1)
+		return
+	decoy.queue_free()
+	await get_tree().process_frame
+
 	# The remaining views are visual QA only. Freeze and reposition the test ship
 	# starward of each world so its illuminated hemisphere faces the camera. None
 	# of these teleports exist during normal gameplay.
