@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "system_name": "Asterion Prototype",
   "seed": 731942,
   "scale_note": "Physical values are real-unit metadata; Godot uses a compressed playable spatial scale.",
@@ -17,6 +17,26 @@
   },
   "bodies": [
     {
+      "name": "Veyr",
+      "kind": "iron_rich_rocky_world",
+      "mass_earth": 0.72,
+      "radius_earth": 0.91,
+      "surface_gravity_m_s2": 8.526,
+      "surface_gravity_g": 0.869,
+      "semimajor_axis_au": 0.24,
+      "orbital_period_days": 50.263,
+      "bond_albedo": 0.12,
+      "equilibrium_temperature_k": 401.9,
+      "rotation_period_hours": 19.4,
+      "initial_phase_degrees": 142.0,
+      "atmosphere": {
+        "surface_pressure_bar": 0.18,
+        "composition_hint": "thin CO2 / N2 volcanic atmosphere",
+        "status": "artistic composition placeholder"
+      },
+      "science_status": "calculated_bulk_properties_with_artistic_atmosphere"
+    },
+    {
       "name": "Nysa",
       "kind": "oceanic_super_earth_candidate",
       "mass_earth": 2.6,
@@ -28,6 +48,7 @@
       "bond_albedo": 0.28,
       "equilibrium_temperature_k": 248.3,
       "rotation_period_hours": 31.0,
+      "initial_phase_degrees": 0.0,
       "atmosphere": {
         "surface_pressure_bar": 2.7,
         "composition": {
@@ -51,6 +72,48 @@
       "radius_earth": 0.48,
       "surface_gravity_m_s2": 4.256,
       "science_status": "prototype_placeholder_orbit"
+    },
+    {
+      "name": "Orun",
+      "kind": "cold_sub_neptune",
+      "mass_earth": 6.8,
+      "radius_earth": 2.35,
+      "surface_gravity_m_s2": 12.075,
+      "surface_gravity_g": 1.231,
+      "semimajor_axis_au": 1.15,
+      "orbital_period_days": 527.2,
+      "bond_albedo": 0.38,
+      "equilibrium_temperature_k": 168.2,
+      "rotation_period_hours": 18.1,
+      "initial_phase_degrees": 232.0,
+      "atmosphere": {
+        "composition_hint": "H2 / He envelope with methane-bearing upper clouds",
+        "status": "artistic composition placeholder"
+      },
+      "science_status": "calculated_bulk_properties_with_artistic_envelope"
+    },
+    {
+      "name": "Kharis",
+      "kind": "ringed_ice_giant",
+      "mass_earth": 68.0,
+      "radius_earth": 8.2,
+      "surface_gravity_m_s2": 9.917,
+      "surface_gravity_g": 1.011,
+      "semimajor_axis_au": 1.9,
+      "orbital_period_days": 1119.59,
+      "bond_albedo": 0.44,
+      "equilibrium_temperature_k": 127.6,
+      "rotation_period_hours": 13.6,
+      "initial_phase_degrees": 64.0,
+      "atmosphere": {
+        "composition_hint": "H2 / He / methane ice-giant envelope",
+        "status": "artistic composition placeholder"
+      },
+      "rings": {
+        "present": true,
+        "art_direction": "broad dark rings with narrow bright shepherd bands"
+      },
+      "science_status": "calculated_bulk_properties_with_artistic_envelope_and_rings"
     }
   ]
 }
