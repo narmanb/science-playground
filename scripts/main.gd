@@ -3,14 +3,26 @@ extends Node3D
 const CAPTURE_ENV := "SCIENCE_PLAYGROUND_CAPTURE"
 const CAPTURE_PATH := "res://build/preview/main.png"
 
+@onready var ship: RigidBody3D = $Ship
+
 
 func _ready() -> void:
+	_initialize_view.call_deferred()
+
+
+func _initialize_view() -> void:
+	# The system is procedural, so wait one frame for Nysa to exist before aiming the ship.
+	await get_tree().process_frame
+	var target := get_node_or_null("AlienSystem/PlanetOrbit/Nysa") as Node3D
+	if target != null:
+		ship.look_at(target.global_position, Vector3.UP)
+
 	if OS.get_environment(CAPTURE_ENV) == "1":
-		_capture_preview.call_deferred()
+		await _capture_preview()
 
 
 func _capture_preview() -> void:
-	# Give imported GLB materials, procedural bodies, and the first rendered frame time to settle.
+	# Give imported GLB materials and the newly framed camera several rendered frames to settle.
 	for _frame in 12:
 		await get_tree().process_frame
 
