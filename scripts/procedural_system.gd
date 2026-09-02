@@ -22,7 +22,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	for orbiter in orbiters:
 		var pivot: Node3D = orbiter["pivot"]
-		pivot.rotate_y(orbiter["speed"] * delta)
+		pivot.rotate_y(float(orbiter["speed"]) * delta)
 
 
 func _load_system_manifest() -> void:
@@ -57,12 +57,12 @@ func _build_system() -> void:
 
 func _create_star() -> void:
 	var star_data: Dictionary = system_manifest.get("star", {})
-	var radius_solar := float(star_data.get("radius_solar", 0.777425))
-	var luminosity_solar := float(star_data.get("luminosity_solar", 0.283982))
-	var mass_solar := float(star_data.get("mass_solar", 0.73))
-	var temperature_k := float(star_data.get("effective_temperature_k", 4778.8))
+	var radius_solar: float = float(star_data.get("radius_solar", 0.777425))
+	var luminosity_solar: float = float(star_data.get("luminosity_solar", 0.283982))
+	var mass_solar: float = float(star_data.get("mass_solar", 0.73))
+	var temperature_k: float = float(star_data.get("effective_temperature_k", 4778.8))
 	var spectral_hint := String(star_data.get("spectral_hint", "K-type orange dwarf"))
-	var visual_radius := 28.0 * radius_solar / 0.777425
+	var visual_radius: float = 28.0 * radius_solar / 0.777425
 
 	var star := MeshInstance3D.new()
 	star.name = String(star_data.get("name", "Asterion"))
@@ -89,22 +89,22 @@ func _create_star() -> void:
 	var light := OmniLight3D.new()
 	light.name = "AsterionLight"
 	light.omni_range = 900.0
-	light.light_energy = clamp(4.7 + luminosity_solar * 3.5, 5.0, 7.5)
+	light.light_energy = clampf(4.7 + luminosity_solar * 3.5, 5.0, 7.5)
 	light.shadow_enabled = false
 	light.light_color = Color(1.0, 0.71, 0.48)
 	add_child(light)
 
 
 func _create_planet_and_moon() -> void:
-	var planet_data := _body_data("Nysa")
-	var moon_data := _body_data("Thale")
+	var planet_data: Dictionary = _body_data("Nysa")
+	var moon_data: Dictionary = _body_data("Thale")
 
-	var planet_radius_earth := float(planet_data.get("radius_earth", 1.34))
-	var semimajor_axis_au := float(planet_data.get("semimajor_axis_au", 0.68))
-	var orbital_period_days := float(planet_data.get("orbital_period_days", 239.713))
-	var planet_radius := 22.0 * planet_radius_earth / 1.34
-	var orbital_radius := 310.0 * semimajor_axis_au / 0.68
-	var orbit_speed := 0.006 * 239.713 / max(orbital_period_days, 1.0)
+	var planet_radius_earth: float = float(planet_data.get("radius_earth", 1.34))
+	var semimajor_axis_au: float = float(planet_data.get("semimajor_axis_au", 0.68))
+	var orbital_period_days: float = float(planet_data.get("orbital_period_days", 239.713))
+	var planet_radius: float = 22.0 * planet_radius_earth / 1.34
+	var orbital_radius: float = 310.0 * semimajor_axis_au / 0.68
+	var orbit_speed: float = 0.006 * 239.713 / maxf(orbital_period_days, 1.0)
 
 	var planet_pivot := Node3D.new()
 	planet_pivot.name = "PlanetOrbit"
@@ -121,7 +121,7 @@ func _create_planet_and_moon() -> void:
 	)
 	var planet_kind := String(planet_data.get("kind", "oceanic_super_earth_candidate")).replace("_", " ").to_upper()
 	var atmosphere: Dictionary = planet_data.get("atmosphere", {})
-	var pressure_bar := float(atmosphere.get("surface_pressure_bar", 2.7))
+	var pressure_bar: float = float(atmosphere.get("surface_pressure_bar", 2.7))
 	planet.set_meta("scan_name", "NYSA")
 	planet.set_meta("scan_class", planet_kind)
 	planet.set_meta(
@@ -146,8 +146,8 @@ func _create_planet_and_moon() -> void:
 	planet_pivot.add_child(moon_pivot)
 	orbiters.append({"pivot": moon_pivot, "speed": 0.05})
 
-	var moon_radius_earth := float(moon_data.get("radius_earth", 0.48))
-	var moon_radius := 7.0 * moon_radius_earth / 0.48
+	var moon_radius_earth: float = float(moon_data.get("radius_earth", 0.48))
+	var moon_radius: float = 7.0 * moon_radius_earth / 0.48
 	var moon := _make_sphere_body(
 		"Thale",
 		moon_radius,
@@ -220,12 +220,12 @@ func _add_ring_system(parent_body: MeshInstance3D) -> void:
 	multimesh.instance_count = ring_particle_count
 
 	for i in ring_particle_count:
-		var angle := rng.randf_range(0.0, TAU)
-		var radius := rng.randf_range(31.0, 49.0)
-		var vertical := rng.randfn(0.0, 0.28)
+		var angle: float = rng.randf_range(0.0, TAU)
+		var radius: float = rng.randf_range(31.0, 49.0)
+		var vertical: float = rng.randfn(0.0, 0.28)
 		var position_value := Vector3(cos(angle) * radius, vertical, sin(angle) * radius)
 		var basis := Basis.from_euler(Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU))
-		var scale_value := rng.randf_range(0.45, 1.7)
+		var scale_value: float = rng.randf_range(0.45, 1.7)
 		basis = basis.scaled(Vector3.ONE * scale_value)
 		multimesh.set_instance_transform(i, Transform3D(basis, position_value))
 
@@ -251,9 +251,9 @@ func _create_asteroid_belt() -> void:
 	multimesh.instance_count = asteroid_count
 
 	for i in asteroid_count:
-		var angle := rng.randf_range(0.0, TAU)
-		var radius := rng.randf_range(470.0, 610.0)
-		var y := rng.randfn(0.0, 12.0)
+		var angle: float = rng.randf_range(0.0, TAU)
+		var radius: float = rng.randf_range(470.0, 610.0)
+		var y: float = rng.randfn(0.0, 12.0)
 		var position_value := Vector3(cos(angle) * radius, y, sin(angle) * radius)
 		var basis := Basis.from_euler(Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU))
 		basis = basis.scaled(Vector3(
@@ -287,8 +287,8 @@ func _create_background_stars() -> void:
 			rng.randf_range(-1.0, 1.0),
 			rng.randf_range(-1.0, 1.0)
 		).normalized()
-		var distance := rng.randf_range(950.0, 1250.0)
-		var scale_value := rng.randf_range(0.45, 1.9)
+		var distance: float = rng.randf_range(950.0, 1250.0)
+		var scale_value: float = rng.randf_range(0.45, 1.9)
 		multimesh.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * scale_value), direction * distance))
 
 	stars.multimesh = multimesh
