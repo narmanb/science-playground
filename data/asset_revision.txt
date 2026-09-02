@@ -1,1 +1,1 @@
-cockpit_blockout_revision=2
+cockpit_blockout_revision=3
