@@ -1,6 +1,8 @@
 extends Control
 class_name FlightHUD
 
+signal scan_completed(target: Node3D, tier: int)
+
 @export var ship_path: NodePath
 @export var scan_duration := 3.2
 @export var scan_acquire_dot := 0.94
@@ -49,7 +51,7 @@ func _process(delta: float) -> void:
 	if ship == null:
 		return
 	var speed := ship.linear_velocity.length()
-	status_label.text = "%s   |   %.1f m/s   |   LOCK %s" % [
+	status_label.text = "%s   |   %.1f u/s   |   LOCK %s" % [
 		ShipController.MODE_NAMES[ship.flight_mode],
 		speed,
 		"ON" if ship.inertial_lock else "OFF"
@@ -321,7 +323,7 @@ func _update_scan(delta: float) -> void:
 	elif scan_signal < 0.45:
 		guidance = "REDUCE ROTATION"
 
-	scan_label.text = "%s   |   RANGE %.1f km\nSIGNAL %d%%   ANALYSIS %d%%\n%s" % [
+	scan_label.text = "%s   |   RANGE %.1f u\nSIGNAL %d%%   ANALYSIS %d%%\n%s" % [
 		_target_name(scan_target),
 		distance,
 		int(round(scan_signal * 100.0)),
@@ -338,12 +340,14 @@ func _complete_scan(camera: Camera3D) -> void:
 		return
 	var target := scan_target
 	var distance := camera.global_position.distance_to(target.global_position)
-	scan_label.text = "%s\n%s\nRANGE %.1f km\n%s" % [
+	var tier := int(target.get_meta("scan_profile_tier", 0))
+	scan_label.text = "%s\n%s\nRANGE %.1f u\n%s" % [
 		_target_name(target),
 		str(target.get_meta("scan_class", "UNCLASSIFIED")),
 		distance,
 		str(target.get_meta("scan_note", "No additional data.")),
 	]
+	scan_completed.emit(target, tier)
 	scan_target = null
 	scan_progress = 0.0
 	scan_signal = 0.0
