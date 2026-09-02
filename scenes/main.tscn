@@ -11,7 +11,7 @@ background_mode = 1
 background_color = Color(0.0025, 0.004, 0.012, 1)
 ambient_light_source = 3
 ambient_light_color = Color(0.15, 0.21, 0.3, 1)
-ambient_light_energy = 0.42
+ambient_light_energy = 0.5
 
 [sub_resource type="CapsuleShape3D" id="Capsule_ship"]
 radius = 1.15
@@ -22,6 +22,12 @@ script = ExtResource("5_main")
 
 [node name="SpaceEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_space")
+
+[node name="AsterionParallelLight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(0, -90, 0)
+light_color = Color(1, 0.73, 0.5, 1)
+light_energy = 1.55
+shadow_enabled = false
 
 [node name="AlienSystem" type="Node3D" parent="."]
 script = ExtResource("1_system")
