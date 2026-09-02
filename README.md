@@ -12,10 +12,12 @@ A Godot 4 Android-first experimental space exploration project. This is not inte
 - D-pad / RCS burst translation on physical controllers
 - Touchscreen vector and attitude pads
 - Active sensor scanning that requires keeping a target aligned long enough to complete analysis
+- NAV-aware scan acquisition: the selected target gets priority only while it remains inside the legitimate sensor cone
 - Three useful science depths on major worlds: **Remote / Spectral / Proximity**
 - Persistent science catalog that remembers the best completed survey depth for every body
 - Science-priority navigation that can skip fully surveyed targets
 - Contextual science objective derived from the selected NAV target, approach zone, and saved catalog progress
+- Science-envelope guidance showing the next required observation radius, current clearance in body radii, relative closing/opening motion, and ETA when closing
 - Trajectory-based navigation: destination bearing and actual velocity are separate instruments
 - Celestial collision shells plus altitude, relative closing-speed, and contact-time warnings
 - Manifest-driven planetary rotation periods represented at accelerated visual time
@@ -55,6 +57,8 @@ Close approaches add another piloting problem. The proximity instrument reports 
 
 SCAN is an active maneuver rather than an instant information button. Center a celestial body in the sensor cone, begin the scan, and maintain alignment while analysis accumulates. Excess rotation reduces signal quality; losing the target causes the analysis to decay.
 
+When a NAV target is inside the valid acquisition cone, SCAN treats that selection as explicit pilot intent and prefers it even if another scannable body is slightly better centered. If the NAV target leaves the cone, the preference disappears and scanning immediately returns to normal best-centered free acquisition. NAV therefore reduces accidental scans without becoming an invisible hard lock.
+
 Major worlds expose progressively deeper observations as the ship approaches:
 
 1. **Remote Survey** — bulk physical and orbital information.
@@ -62,6 +66,8 @@ Major worlds expose progressively deeper observations as the ship approaches:
 3. **Proximity Pass** — resolves local pressure/ring/model-status details.
 
 The best completed depth is written to `user://science_discoveries.json`, so catalog progress survives app restarts. A contextual cockpit objective uses that saved progress and the current approach zone to indicate whether a scan is ready or whether a closer pass is required.
+
+When a closer tier is required, the same profile thresholds used to assign science depth are exposed directly to the cockpit. The objective shows the target envelope in body radii (currently **≤12R** for Spectral and **≤5R** for Proximity on three-tier worlds), current clearance, and relative radial motion after subtracting estimated target orbital movement. When the ship is closing, it also estimates time to the science envelope. This is guidance only; it never steers or brakes the spacecraft.
 
 Science-priority NAV searches for the next body whose best completed survey is still below its available maximum. The normal all-body cycle remains available for revisiting completed worlds.
 
@@ -117,7 +123,10 @@ GitHub Actions currently:
 - renders an active-flight smoke-test frame exercising scanning, navigation, and inertial velocity feedback;
 - completes a real Nysa proximity scan and renders the persistent catalog;
 - verifies the post-scan objective changes to full-survey-complete;
-- verifies science-priority NAV then skips completed Nysa and selects Veyr;
+- verifies science-priority NAV skips completed Nysa and selects Veyr;
+- verifies the completed Nysa sensor report clears when NAV moves on;
+- renders and verifies a Veyr Spectral-approach state using the exact ≤12R science envelope, current clearance, relative closing rate, and ETA;
+- adversarially tests NAV-aware scan acquisition with a temporary centered competitor, including both selected-target priority inside the cone and free-scan fallback outside it;
 - renders close inspection frames for Veyr, Orun, and Kharis so planetary shader changes can be reviewed without installing every intermediate APK.
 
 ## Project layout
