@@ -36,18 +36,18 @@ void fragment() {
     float narrow_bands = sin((latitude + turbulence * 0.03) * 38.0);
     float mix_value = broad_bands * 0.24 + narrow_bands * 0.07 + 0.52;
 
-    vec3 dark_methane = vec3(0.09, 0.24, 0.30);
-    vec3 blue_green = vec3(0.16, 0.44, 0.50);
-    vec3 cyan_haze = vec3(0.30, 0.61, 0.63);
+    vec3 dark_methane = vec3(0.10, 0.26, 0.32);
+    vec3 blue_green = vec3(0.17, 0.46, 0.52);
+    vec3 cyan_haze = vec3(0.32, 0.63, 0.65);
     vec3 color = mix(dark_methane, blue_green, smoothstep(0.20, 0.80, mix_value));
 
     float polar = smoothstep(0.61, 0.94, abs(latitude));
     color = mix(color, cyan_haze, polar * 0.44);
     float storm_belt = smoothstep(0.80, 0.95, turbulence) * (1.0 - polar);
-    color = mix(color, vec3(0.38, 0.68, 0.68), storm_belt * 0.24);
+    color = mix(color, vec3(0.40, 0.70, 0.70), storm_belt * 0.24);
 
     ALBEDO = color;
-    EMISSION = color * 0.018;
+    EMISSION = color * 0.030;
     ROUGHNESS = 0.88;
     METALLIC = 0.0;
 }
