@@ -27,7 +27,7 @@ environment = SubResource("Environment_space")
 script = ExtResource("1_system")
 
 [node name="Ship" type="RigidBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 220, 50, 80)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 310, 30, 130)
 mass = 1.6
 can_sleep = false
 script = ExtResource("2_ship")
