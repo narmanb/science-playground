@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/procedural_system.gd" id="1_system"]
 [ext_resource type="Script" path="res://scripts/ship_controller.gd" id="2_ship"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/visual_enhancer.gd" id="6_visual"]
 [ext_resource type="Script" path="res://scripts/velocity_vector_hud.gd" id="7_velocity"]
 [ext_resource type="Script" path="res://scripts/navigation_hud.gd" id="8_navigation"]
+[ext_resource type="Script" path="res://scripts/world_rotation_controller.gd" id="9_rotation"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -37,6 +38,9 @@ script = ExtResource("1_system")
 
 [node name="VisualEnhancer" type="Node" parent="."]
 script = ExtResource("6_visual")
+
+[node name="WorldRotationController" type="Node" parent="."]
+script = ExtResource("9_rotation")
 
 [node name="Ship" type="RigidBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 310, 0, 130)
