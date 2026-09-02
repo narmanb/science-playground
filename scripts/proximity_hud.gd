@@ -7,6 +7,8 @@ class_name ProximityHUD
 
 var ship: ShipController
 var warning_label: Label
+var previous_positions: Dictionary = {}
+var estimated_velocities: Dictionary = {}
 
 
 func _ready() -> void:
@@ -25,9 +27,10 @@ func _notification(what: int) -> void:
 		_layout_ui()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if ship == null:
 		return
+	_update_body_velocities(delta)
 	var nearest := _nearest_body()
 	if nearest.is_empty():
 		warning_label.visible = false
@@ -43,7 +46,8 @@ func _process(_delta: float) -> void:
 	var to_body := body.global_position - ship.global_position
 	var closing_speed := 0.0
 	if to_body.length_squared() > 0.0001:
-		closing_speed = ship.linear_velocity.dot(to_body.normalized())
+		var relative_velocity := ship.linear_velocity - _body_velocity(body)
+		closing_speed = relative_velocity.dot(to_body.normalized())
 
 	var status := "PROXIMITY"
 	var font_color := Color(1.0, 0.78, 0.35, 0.95)
@@ -57,7 +61,7 @@ func _process(_delta: float) -> void:
 	if closing_speed > 0.5:
 		eta_text = "   •   CONTACT %.1fs" % (maxf(clearance, 0.0) / closing_speed)
 
-	warning_label.text = "%s — %s   •   ALT %.1f km   •   CLOSING %.1f m/s%s" % [
+	warning_label.text = "%s — %s   •   ALT %.1f u   •   CLOSING %.1f u/s%s" % [
 		status,
 		_target_name(body),
 		maxf(clearance, 0.0),
@@ -66,6 +70,25 @@ func _process(_delta: float) -> void:
 	]
 	warning_label.add_theme_color_override("font_color", font_color)
 	warning_label.visible = true
+
+
+func _update_body_velocities(delta: float) -> void:
+	if delta <= 0.0001:
+		return
+	for candidate in get_tree().get_nodes_in_group("scannable"):
+		if not candidate is Node3D:
+			continue
+		var body := candidate as Node3D
+		var key := body.get_instance_id()
+		var position_value := body.global_position
+		if previous_positions.has(key):
+			estimated_velocities[key] = (position_value - previous_positions[key]) / delta
+		previous_positions[key] = position_value
+
+
+func _body_velocity(body: Node3D) -> Vector3:
+	var key := body.get_instance_id()
+	return estimated_velocities.get(key, Vector3.ZERO)
 
 
 func _nearest_body() -> Dictionary:
