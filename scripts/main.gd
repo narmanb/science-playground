@@ -19,7 +19,8 @@ func _capture_preview() -> void:
 	var ship := get_node_or_null("Ship") as ShipController
 	var hud := get_node_or_null("HUDLayer/FlightHUD") as FlightHUD
 	var nav := get_node_or_null("HUDLayer/NavigationHUD") as NavigationHUD
-	if ship == null or hud == null or nav == null:
+	var science_log := get_node_or_null("HUDLayer/ScienceLogHUD") as ScienceLogHUD
+	if ship == null or hud == null or nav == null or science_log == null:
 		push_error("Visual smoke test could not find the ship or cockpit HUD layers.")
 		get_tree().quit(1)
 		return
@@ -51,11 +52,40 @@ func _capture_preview() -> void:
 		get_tree().quit(1)
 		return
 
+	# Finish the same scan in a deliberately stable test configuration, then open
+	# the persistent science catalog. This exercises scan completion -> science
+	# tier -> discovery signal -> saved catalog -> rendered UI in one CI run.
+	if hud.scan_target != null:
+		var locked_target := hud.scan_target
+		ship.freeze = true
+		ship.linear_velocity = Vector3.ZERO
+		ship.angular_velocity = Vector3.ZERO
+		ship.look_at(locked_target.global_position, Vector3.UP)
+
+	var completion_frames := 0
+	while hud.scan_target != null and completion_frames < 360:
+		await get_tree().process_frame
+		completion_frames += 1
+	if hud.scan_target != null:
+		push_error("Visual smoke test could not complete the held science scan.")
+		get_tree().quit(1)
+		return
+	if not science_log.discoveries.has("NYSA"):
+		push_error("Visual smoke test completed a scan but the science catalog did not record Nysa.")
+		get_tree().quit(1)
+		return
+
+	science_log.toggle_log()
+	for _frame in 3:
+		await get_tree().process_frame
+	if not _save_view(CAPTURE_DIR + "/catalog.png"):
+		get_tree().quit(1)
+		return
+	science_log.toggle_log()
+
 	# The remaining views are visual QA only. Freeze and reposition the test ship
 	# starward of each world so its illuminated hemisphere faces the camera. None
 	# of these teleports exist during normal gameplay.
-	if hud.scan_target != null:
-		ship.request_scan()
 	ship.freeze = true
 	ship.linear_velocity = Vector3.ZERO
 	ship.angular_velocity = Vector3.ZERO
