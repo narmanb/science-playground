@@ -3,8 +3,9 @@
 Run inside Blender:
     blender --background --python tools/blender/generate_cockpit_blockout.py -- --output cockpit_blockout.glb
 
-The generated asset is intentionally modular. It is a starting point for the ship's
-physical control language, not a finished art asset.
+Coordinates in create_cockpit() are authored as Godot-space coordinates (Y up, -Z
+forward). Before export, the scene is rotated into Blender's Z-up convention so
+Blender's glTF Y-up conversion lands back in the intended Godot coordinates.
 """
 
 import argparse
@@ -13,7 +14,7 @@ import sys
 from pathlib import Path
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix
 
 
 def args_after_double_dash():
@@ -97,7 +98,6 @@ def create_cockpit():
                     emission=(0.02, 0.62, 0.7), emission_strength=2.2)
     amber = material("AmberControl", (0.12, 0.045, 0.008), metallic=0.15, roughness=0.32,
                      emission=(1.0, 0.23, 0.035), emission_strength=2.0)
-    glass = material("CanopyTint", (0.025, 0.075, 0.095), metallic=0.1, roughness=0.08)
 
     # Main lower dashboard shell.
     add_box("DashboardLower", (0.0, -1.05, -2.2), (2.45, 0.22, 0.8), hull, bevel=0.12,
@@ -159,10 +159,12 @@ def create_cockpit():
         add_cylinder(f"OverheadSwitch_{i:02d}", (x, 1.37, -1.67), 0.035, 0.16, amber,
                      rotation=(math.radians(70), 0, 0), vertices=12)
 
-    # Simple canopy pane placeholder for silhouette checking in Blender.
-    pane = add_box("CanopyReference", (0.0, 0.45, -3.0), (2.15, 1.35, 0.015), glass, bevel=0.02)
-    pane.display_type = "WIRE"
-    pane.hide_render = True
+
+def orient_for_godot():
+    """Convert authored Godot-space transforms into Blender space before glTF export."""
+    conversion = Matrix.Rotation(math.radians(90.0), 4, "X")
+    for obj in list(bpy.context.scene.objects):
+        obj.matrix_world = conversion @ obj.matrix_world
 
 
 def export_glb(output):
@@ -181,6 +183,7 @@ def main():
     args = parse_args()
     reset_scene()
     create_cockpit()
+    orient_for_godot()
     export_glb(args.output)
 
 
