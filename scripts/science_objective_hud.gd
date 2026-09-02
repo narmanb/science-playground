@@ -8,6 +8,7 @@ class_name ScienceObjectiveHUD
 const OBJECTIVE_COLOR := Color(0.72, 0.92, 0.82, 0.92)
 const APPROACH_COLOR := Color(0.80, 0.94, 0.84, 0.94)
 const OPENING_COLOR := Color(1.0, 0.73, 0.36, 0.96)
+const BRAKE_COLOR := Color(1.0, 0.42, 0.30, 0.98)
 
 var navigation_hud: NavigationHUD
 var science_log: ScienceLogHUD
@@ -18,6 +19,7 @@ var tracked_target_id := 0
 var previous_target_position := Vector3.ZERO
 var estimated_target_velocity := Vector3.ZERO
 var has_previous_target_position := false
+var braking_required := false
 
 
 func _ready() -> void:
@@ -30,7 +32,7 @@ func _ready() -> void:
 	objective_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	objective_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	objective_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	objective_label.add_theme_font_size_override("font_size", 15)
+	objective_label.add_theme_font_size_override("font_size", 14)
 	objective_label.add_theme_color_override("font_color", OBJECTIVE_COLOR)
 	add_child(objective_label)
 	_layout_ui()
@@ -59,10 +61,13 @@ func _process(delta: float) -> void:
 		return
 
 	_update_target_velocity(target, delta)
+	braking_required = false
 	var objective := _objective_for(target)
-	var approach := _approach_guidance_for(target)
-	objective_label.text = objective if approach.is_empty() else objective + "\n" + approach
-	objective_label.add_theme_color_override("font_color", _guidance_color(target))
+	var approach_lines := _approach_guidance_lines(target)
+	var lines: Array[String] = [objective]
+	lines.append_array(approach_lines)
+	objective_label.text = "\n".join(lines)
+	objective_label.add_theme_color_override("font_color", BRAKE_COLOR if braking_required else _guidance_color(target))
 	objective_label.visible = true
 
 
@@ -100,27 +105,28 @@ func _objective_for(target: Node3D) -> String:
 	]
 
 
-func _approach_guidance_for(target: Node3D) -> String:
+func _approach_guidance_lines(target: Node3D) -> Array[String]:
+	var lines: Array[String] = []
 	var max_tier := int(target.get_meta("scan_profile_max_tier", 0))
 	if max_tier <= 0:
-		return ""
+		return lines
 
 	var achieved := int(science_log.discoveries.get(_target_name(target), -1))
 	if achieved >= max_tier:
-		return ""
+		return lines
 
 	var current_zone := clampi(int(target.get_meta("scan_profile_tier", 0)), 0, max_tier)
 	if current_zone > achieved:
-		return ""
+		return lines
 
 	var next_tier := clampi(achieved + 1, 0, max_tier)
 	if next_tier <= 0:
-		return ""
+		return lines
 
 	var required_radii := _envelope_radii(target, next_tier)
 	var radius := _body_radius(target)
 	if required_radii <= 0.0 or radius <= 0.0 or navigation_hud.ship == null:
-		return ""
+		return lines
 
 	var ship := navigation_hud.ship
 	var center_distance := ship.global_position.distance_to(target.global_position)
@@ -143,12 +149,48 @@ func _approach_guidance_for(target: Node3D) -> String:
 	if closing_speed > 0.20 and envelope_distance > 0.0:
 		eta_text = "   •   ETA %.0fs" % (envelope_distance / closing_speed)
 
-	return "ENVELOPE ≤%.1f R   •   NOW %.1f R   •   %s%s" % [
+	lines.append("ENVELOPE ≤%.1f R   •   NOW %.1f R   •   %s%s" % [
 		required_radii,
 		clearance_radii,
 		motion_text,
 		eta_text,
-	]
+	])
+
+	if closing_speed > 0.20 and envelope_distance > 0.0:
+		var acceleration := _main_thrust_acceleration(ship)
+		if acceleration > 0.001:
+			# This is intentionally a thrust-only stopping estimate. Cruise/Vector
+			# damping may help in practice, but the science instrument does not count
+			# passive damping as guaranteed braking authority.
+			var stopping_distance := closing_speed * closing_speed / (2.0 * acceleration)
+			var braking_margin := envelope_distance - stopping_distance
+			if braking_margin <= 0.0:
+				braking_required = true
+				lines.append("BRAKE NOW   •   THRUST STOP ≈%.1f u   •   ENVELOPE IN %.1f u" % [
+					stopping_distance,
+					envelope_distance,
+				])
+			else:
+				lines.append("THRUST STOP ≈%.1f u   •   BRAKE MARGIN %.1f u" % [
+					stopping_distance,
+					braking_margin,
+				])
+
+	return lines
+
+
+func _main_thrust_acceleration(ship: ShipController) -> float:
+	if ship.mass <= 0.0:
+		return 0.0
+	var mode_multiplier := 1.0
+	match ship.flight_mode:
+		ShipController.MODE_CRUISE:
+			mode_multiplier = 1.35
+		ShipController.MODE_DRIFT:
+			mode_multiplier = 0.85
+		_:
+			mode_multiplier = 1.0
+	return ship.main_thrust_force * mode_multiplier / ship.mass
 
 
 func _guidance_color(target: Node3D) -> Color:
@@ -232,5 +274,5 @@ func _target_name(target: Node3D) -> String:
 
 func _layout_ui() -> void:
 	var size := get_viewport_rect().size
-	objective_label.position = Vector2(size.x * 0.18, 120.0)
-	objective_label.size = Vector2(size.x * 0.64, 58.0)
+	objective_label.position = Vector2(size.x * 0.17, 116.0)
+	objective_label.size = Vector2(size.x * 0.66, 82.0)
