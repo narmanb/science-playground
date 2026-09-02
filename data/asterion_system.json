@@ -26,7 +26,7 @@
       "semimajor_axis_au": 0.24,
       "orbital_period_days": 50.263,
       "bond_albedo": 0.12,
-      "equilibrium_temperature_k": 401.9,
+      "equilibrium_temperature_k": 439.4,
       "rotation_period_hours": 19.4,
       "initial_phase_degrees": 142.0,
       "atmosphere": {
@@ -83,7 +83,7 @@
       "semimajor_axis_au": 1.15,
       "orbital_period_days": 527.2,
       "bond_albedo": 0.38,
-      "equilibrium_temperature_k": 168.2,
+      "equilibrium_temperature_k": 183.9,
       "rotation_period_hours": 18.1,
       "initial_phase_degrees": 232.0,
       "atmosphere": {
@@ -102,7 +102,7 @@
       "semimajor_axis_au": 1.9,
       "orbital_period_days": 1119.59,
       "bond_albedo": 0.44,
-      "equilibrium_temperature_k": 127.6,
+      "equilibrium_temperature_k": 139.5,
       "rotation_period_hours": 13.6,
       "initial_phase_degrees": 64.0,
       "atmosphere": {
