@@ -21,6 +21,29 @@ jobs:
       - name: Verify engine
         run: godot --version
 
+      - name: Verify scientific manifest reproducibility
+        run: |
+          python - <<'PY'
+          import json
+          import runpy
+          from pathlib import Path
+
+          module = runpy.run_path("tools/science/generate_system_manifest.py")
+          generated = module["build_manifest"]()
+          manifest_path = Path("data/asterion_system.json")
+          committed = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+          if committed != generated:
+              print("Committed Asterion manifest does not match the deterministic science generator.")
+              print("--- committed")
+              print(json.dumps(committed, indent=2, sort_keys=True))
+              print("--- generated")
+              print(json.dumps(generated, indent=2, sort_keys=True))
+              raise SystemExit(1)
+
+          print("Asterion scientific manifest matches deterministic generator output.")
+          PY
+
       - name: Import project and reject script errors
         shell: bash
         run: |
