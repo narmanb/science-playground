@@ -5,6 +5,7 @@ const NYSA_CLOUDS := preload("res://shaders/nysa_clouds.gdshader")
 const VEYR_SURFACE := preload("res://shaders/veyr_surface.gdshader")
 const ORUN_SURFACE := preload("res://shaders/orun_surface.gdshader")
 const KHARIS_SURFACE := preload("res://shaders/kharis_surface.gdshader")
+const PLANET_RINGS := preload("res://shaders/planet_rings.gdshader")
 
 
 func _ready() -> void:
@@ -13,9 +14,10 @@ func _ready() -> void:
 
 func _apply_visuals() -> void:
 	await get_tree().process_frame
-	_apply_surface("../AlienSystem/VeyrOrbit/Veyr", VEYR_SURFACE)
-	_apply_surface("../AlienSystem/OrunOrbit/Orun", ORUN_SURFACE)
-	_apply_surface("../AlienSystem/KharisOrbit/Kharis", KHARIS_SURFACE)
+	_apply_surface(NodePath("../AlienSystem/VeyrOrbit/Veyr"), VEYR_SURFACE)
+	_apply_surface(NodePath("../AlienSystem/OrunOrbit/Orun"), ORUN_SURFACE)
+	_apply_surface(NodePath("../AlienSystem/KharisOrbit/Kharis"), KHARIS_SURFACE)
+	_add_kharis_ring_sheet()
 
 	var nysa := get_node_or_null("../AlienSystem/PlanetOrbit/Nysa") as MeshInstance3D
 	if nysa == null:
@@ -56,3 +58,31 @@ func _apply_surface(node_path: NodePath, shader: Shader) -> void:
 	var material := ShaderMaterial.new()
 	material.shader = shader
 	body.material_override = material
+
+
+func _add_kharis_ring_sheet() -> void:
+	var kharis := get_node_or_null("../AlienSystem/KharisOrbit/Kharis") as MeshInstance3D
+	if kharis == null or kharis.get_node_or_null("BroadRingSheet") != null:
+		return
+	var sphere := kharis.mesh as SphereMesh
+	if sphere == null:
+		return
+
+	var outer_radius := sphere.radius * 2.45
+	var plane := PlaneMesh.new()
+	plane.size = Vector2.ONE * outer_radius * 2.0
+	plane.subdivide_width = 1
+	plane.subdivide_depth = 1
+
+	var material := ShaderMaterial.new()
+	material.shader = PLANET_RINGS
+	material.set_shader_parameter("inner_radius", 1.32 / 2.45)
+	material.set_shader_parameter("inner_color", Vector3(0.18, 0.15, 0.14))
+	material.set_shader_parameter("outer_color", Vector3(0.55, 0.47, 0.38))
+	material.set_shader_parameter("opacity", 0.58)
+
+	var ring_sheet := MeshInstance3D.new()
+	ring_sheet.name = "BroadRingSheet"
+	ring_sheet.mesh = plane
+	ring_sheet.material_override = material
+	kharis.add_child(ring_sheet)
