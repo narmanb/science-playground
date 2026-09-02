@@ -32,21 +32,22 @@ float fbm(vec2 p) {
 void fragment() {
     float latitude = (UV.y - 0.5) * 2.0;
     float turbulence = fbm(vec2(UV.x * 7.0, UV.y * 4.0));
-    float broad_bands = sin((latitude + (turbulence - 0.5) * 0.09) * 16.0);
-    float narrow_bands = sin((latitude + turbulence * 0.035) * 41.0);
-    float mix_value = broad_bands * 0.34 + narrow_bands * 0.10 + 0.50;
+    float broad_bands = sin((latitude + (turbulence - 0.5) * 0.08) * 15.0);
+    float narrow_bands = sin((latitude + turbulence * 0.03) * 38.0);
+    float mix_value = broad_bands * 0.24 + narrow_bands * 0.07 + 0.52;
 
-    vec3 dark_methane = vec3(0.055, 0.19, 0.25);
-    vec3 blue_green = vec3(0.11, 0.39, 0.46);
-    vec3 cyan_haze = vec3(0.25, 0.59, 0.62);
-    vec3 color = mix(dark_methane, blue_green, smoothstep(0.18, 0.78, mix_value));
+    vec3 dark_methane = vec3(0.09, 0.24, 0.30);
+    vec3 blue_green = vec3(0.16, 0.44, 0.50);
+    vec3 cyan_haze = vec3(0.30, 0.61, 0.63);
+    vec3 color = mix(dark_methane, blue_green, smoothstep(0.20, 0.80, mix_value));
 
     float polar = smoothstep(0.61, 0.94, abs(latitude));
-    color = mix(color, cyan_haze, polar * 0.48);
-    float storm_belt = smoothstep(0.78, 0.94, turbulence) * (1.0 - polar);
-    color = mix(color, vec3(0.34, 0.66, 0.67), storm_belt * 0.28);
+    color = mix(color, cyan_haze, polar * 0.44);
+    float storm_belt = smoothstep(0.80, 0.95, turbulence) * (1.0 - polar);
+    color = mix(color, vec3(0.38, 0.68, 0.68), storm_belt * 0.24);
 
     ALBEDO = color;
-    ROUGHNESS = 0.82;
+    EMISSION = color * 0.018;
+    ROUGHNESS = 0.88;
     METALLIC = 0.0;
 }
