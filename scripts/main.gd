@@ -100,6 +100,25 @@ func _capture_preview() -> void:
 		get_tree().quit(1)
 		return
 
+	# Science-priority NAV must skip the now-complete Nysa survey and choose the
+	# next unfinished body in deterministic order. This makes the objective's
+	# "next science" instruction an end-to-end tested action rather than prose.
+	nav.cycle_science_target()
+	for _frame in 3:
+		await get_tree().process_frame
+	var science_target := nav.current_target()
+	if science_target == null or str(science_target.get_meta("scan_name", science_target.name)).to_upper() != "VEYR":
+		push_error("Science-priority NAV did not advance from completed Nysa to Veyr.")
+		get_tree().quit(1)
+		return
+	if not science_objective.objective_label.text.contains("SCIENCE VEYR"):
+		push_error("Science objective did not follow the science-priority NAV target.")
+		get_tree().quit(1)
+		return
+	if not _save_view(CAPTURE_DIR + "/science_nav.png"):
+		get_tree().quit(1)
+		return
+
 	# The remaining views are visual QA only. Freeze and reposition the test ship
 	# starward of each world so its illuminated hemisphere faces the camera. None
 	# of these teleports exist during normal gameplay.
