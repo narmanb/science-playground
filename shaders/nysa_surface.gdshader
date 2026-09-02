@@ -40,19 +40,21 @@ void fragment() {
     island_mask *= 1.0 - smoothstep(0.68, 0.96, latitude);
 
     float shelf = smoothstep(0.42, 0.73, broad);
-    vec3 deep_ocean = vec3(0.015, 0.075, 0.115);
-    vec3 shelf_ocean = vec3(0.035, 0.23, 0.30);
-    vec3 island = vec3(0.20, 0.31, 0.24);
-    vec3 highland = vec3(0.36, 0.41, 0.31);
+    vec3 deep_ocean = vec3(0.025, 0.13, 0.20);
+    vec3 shelf_ocean = vec3(0.045, 0.30, 0.37);
+    vec3 island = vec3(0.23, 0.36, 0.27);
+    vec3 highland = vec3(0.40, 0.46, 0.34);
 
     vec3 ocean = mix(deep_ocean, shelf_ocean, shelf);
     vec3 land = mix(island, highland, smoothstep(0.72, 0.92, detail));
     vec3 color = mix(ocean, land, island_mask);
 
     float polar_haze = smoothstep(0.78, 1.0, latitude);
-    color = mix(color, vec3(0.30, 0.43, 0.48), polar_haze * 0.32);
+    color = mix(color, vec3(0.34, 0.48, 0.53), polar_haze * 0.30);
 
     ALBEDO = color;
-    ROUGHNESS = mix(0.30, 0.78, island_mask);
-    METALLIC = 0.02;
+    ROUGHNESS = mix(0.55, 0.82, island_mask);
+    SPECULAR = 0.22;
+    METALLIC = 0.0;
+    EMISSION = color * 0.018;
 }
