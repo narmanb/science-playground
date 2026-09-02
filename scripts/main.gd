@@ -20,7 +20,8 @@ func _capture_preview() -> void:
 	var hud := get_node_or_null("HUDLayer/FlightHUD") as FlightHUD
 	var nav := get_node_or_null("HUDLayer/NavigationHUD") as NavigationHUD
 	var science_log := get_node_or_null("HUDLayer/ScienceLogHUD") as ScienceLogHUD
-	if ship == null or hud == null or nav == null or science_log == null:
+	var science_objective := get_node_or_null("HUDLayer/ScienceObjectiveHUD") as ScienceObjectiveHUD
+	if ship == null or hud == null or nav == null or science_log == null or science_objective == null:
 		push_error("Visual smoke test could not find the ship or cockpit HUD layers.")
 		get_tree().quit(1)
 		return
@@ -82,6 +83,22 @@ func _capture_preview() -> void:
 		get_tree().quit(1)
 		return
 	science_log.toggle_log()
+
+	# Once the catalog closes, the contextual objective should immediately use
+	# the saved discovery depth and tell the pilot that Nysa is fully surveyed.
+	for _frame in 3:
+		await get_tree().process_frame
+	if science_objective.objective_label == null or not science_objective.objective_label.visible:
+		push_error("Visual smoke test completed Nysa but the science objective did not return.")
+		get_tree().quit(1)
+		return
+	if not science_objective.objective_label.text.contains("FULL SURVEY COMPLETE"):
+		push_error("Visual smoke test science objective did not advance after the Nysa scan.")
+		get_tree().quit(1)
+		return
+	if not _save_view(CAPTURE_DIR + "/objective.png"):
+		get_tree().quit(1)
+		return
 
 	# The remaining views are visual QA only. Freeze and reposition the test ship
 	# starward of each world so its illuminated hemisphere faces the camera. None
