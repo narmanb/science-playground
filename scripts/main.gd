@@ -115,6 +115,10 @@ func _capture_preview() -> void:
 		push_error("Science objective did not follow the science-priority NAV target.")
 		get_tree().quit(1)
 		return
+	if hud.completed_report_visible or hud.scan_label.text.contains("NYSA"):
+		push_error("Sensor HUD retained stale Nysa report data after NAV advanced to Veyr.")
+		get_tree().quit(1)
+		return
 	if not _save_view(CAPTURE_DIR + "/science_nav.png"):
 		get_tree().quit(1)
 		return
