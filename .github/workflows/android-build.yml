@@ -8,6 +8,8 @@ on:
       - "export_presets.cfg"
       - "scenes/**"
       - "scripts/**"
+      - "assets/**"
+      - "data/**"
       - ".github/workflows/android-build.yml"
 
 env:
