@@ -134,9 +134,15 @@ func _approach_guidance_lines(target: Node3D) -> Array[String]:
 	var clearance_radii := clearance / radius
 	var to_target := target.global_position - ship.global_position
 	var closing_speed := 0.0
+	var main_axis_alignment := 0.0
 	if to_target.length_squared() > 0.0001:
+		var target_direction := to_target.normalized()
 		var relative_velocity := ship.linear_velocity - estimated_target_velocity
-		closing_speed = relative_velocity.dot(to_target.normalized())
+		closing_speed = relative_velocity.dot(target_direction)
+		# Main thrust is bidirectional along local +/-Z, so absolute alignment is
+		# the exact fraction of fore/aft thrust currently available radially without
+		# first changing attitude.
+		main_axis_alignment = absf(ship.global_basis.z.dot(target_direction))
 
 	var motion_text := "RADIAL HOLD"
 	if closing_speed > 0.20:
@@ -157,21 +163,26 @@ func _approach_guidance_lines(target: Node3D) -> Array[String]:
 	])
 
 	if closing_speed > 0.20 and envelope_distance > 0.0:
-		var acceleration := _main_thrust_acceleration(ship)
-		if acceleration > 0.001:
+		var aligned_acceleration := _main_thrust_acceleration(ship) * main_axis_alignment
+		var alignment_percent := int(round(main_axis_alignment * 100.0))
+		if aligned_acceleration <= 0.001:
+			lines.append("MAIN AXIS %d%%   •   ROTATE FOR RADIAL MAIN-THRUST BRAKING" % alignment_percent)
+		else:
 			# This is intentionally a thrust-only stopping estimate. Cruise/Vector
 			# damping may help in practice, but the science instrument does not count
 			# passive damping as guaranteed braking authority.
-			var stopping_distance := closing_speed * closing_speed / (2.0 * acceleration)
+			var stopping_distance := closing_speed * closing_speed / (2.0 * aligned_acceleration)
 			var braking_margin := envelope_distance - stopping_distance
 			if braking_margin <= 0.0:
 				braking_required = true
-				lines.append("BRAKE NOW   •   THRUST STOP ≈%.1f u   •   ENVELOPE IN %.1f u" % [
+				lines.append("BRAKE / ALIGN NOW   •   MAIN AXIS %d%%   •   STOP ≈%.1f u   •   ENVELOPE IN %.1f u" % [
+					alignment_percent,
 					stopping_distance,
 					envelope_distance,
 				])
 			else:
-				lines.append("THRUST STOP ≈%.1f u   •   BRAKE MARGIN %.1f u" % [
+				lines.append("MAIN AXIS %d%%   •   THRUST STOP ≈%.1f u   •   BRAKE MARGIN %.1f u" % [
+					alignment_percent,
 					stopping_distance,
 					braking_margin,
 				])
