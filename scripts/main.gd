@@ -91,7 +91,9 @@ func _position_ship_for_body(ship: ShipController, body: Node3D) -> void:
 		radial = Vector3.RIGHT
 	var starward := -radial.normalized()
 	var distance := visual_radius * 4.2 + 20.0
-	ship.global_position = body.global_position + starward * distance + Vector3.UP * visual_radius * 0.16
+	# A modest elevated inspection angle exposes cloud geometry and, on Kharis,
+	# the broad ring plane while still keeping the cockpit in frame.
+	ship.global_position = body.global_position + starward * distance + Vector3.UP * visual_radius * 0.55
 	ship.look_at(body.global_position, Vector3.UP)
 
 
