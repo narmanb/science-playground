@@ -63,12 +63,19 @@ func _bind_profiles() -> void:
 		var scan_name := str(target.get_meta("scan_name", target.name)).to_upper()
 		if not body_data_by_name.has(scan_name):
 			continue
+		var body_data: Dictionary = body_data_by_name[scan_name]
+		# Bodies without orbital-range metadata, such as the prototype moon Thale,
+		# currently have only one meaningful scan result. Do not pretend they have
+		# three science tiers until the manifest contains data to support them.
+		if not body_data.has("semimajor_axis_au"):
+			continue
 		profiled_targets.append({
 			"target": target,
-			"data": body_data_by_name[scan_name],
+			"data": body_data,
 			"fallback_note": str(target.get_meta("scan_note", "No additional data.")),
 		})
 		target.set_meta("scan_profile_tier", -1)
+		target.set_meta("scan_profile_max_tier", 2)
 
 	if profiled_targets.is_empty():
 		push_warning("Science scan profile did not find any manifest-backed scan targets.")
