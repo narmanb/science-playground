@@ -29,6 +29,7 @@ var scan_button: Button
 var scan_target: Node3D = null
 var scan_progress := 0.0
 var scan_signal := 0.0
+var completed_report_visible := false
 
 
 func _ready() -> void:
@@ -38,6 +39,9 @@ func _ready() -> void:
 	ship.flight_mode_changed.connect(_on_mode_changed)
 	ship.inertial_lock_changed.connect(_on_lock_changed)
 	ship.scan_requested.connect(_on_scan_requested)
+	var navigation_hud := get_parent().get_node_or_null("NavigationHUD")
+	if navigation_hud != null and navigation_hud.has_signal("target_changed"):
+		navigation_hud.connect("target_changed", _on_navigation_target_changed)
 	_on_mode_changed(ShipController.MODE_NAMES[ship.flight_mode])
 	_on_lock_changed(ship.inertial_lock)
 	_layout_ui()
@@ -268,11 +272,23 @@ func _on_lock_changed(enabled: bool) -> void:
 	lock_button.text = "LOCK\n" + ("ENGAGED" if enabled else "FREE")
 
 
+func _on_navigation_target_changed(_target: Node3D, _mode: String) -> void:
+	# Keep an active sensor lock independent from NAV selection, but do not leave
+	# a completed report for the previous body on-screen after the pilot moves on.
+	if scan_target != null or not completed_report_visible:
+		return
+	completed_report_visible = false
+	scan_label.add_theme_font_size_override("font_size", ACTIVE_SCAN_FONT_SIZE)
+	scan_label.text = "SENSOR STANDBY"
+	queue_redraw()
+
+
 func _on_scan_requested() -> void:
 	if scan_target != null:
 		_cancel_scan("SCAN ABORTED")
 		return
 
+	completed_report_visible = false
 	scan_label.add_theme_font_size_override("font_size", ACTIVE_SCAN_FONT_SIZE)
 	var camera := _camera()
 	if camera == null:
@@ -355,6 +371,7 @@ func _complete_scan(camera: Camera3D) -> void:
 		distance,
 		report_note,
 	]
+	completed_report_visible = true
 	scan_completed.emit(target, tier)
 	scan_target = null
 	scan_progress = 0.0
@@ -367,6 +384,7 @@ func _cancel_scan(message: String) -> void:
 	scan_target = null
 	scan_progress = 0.0
 	scan_signal = 0.0
+	completed_report_visible = false
 	scan_button.text = "SCAN"
 	scan_label.add_theme_font_size_override("font_size", ACTIVE_SCAN_FONT_SIZE)
 	scan_label.text = message
