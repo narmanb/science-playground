@@ -37,7 +37,7 @@ jobs:
       - name: Import project
         run: godot --headless --path . --editor --quit
 
-      - name: Render cockpit, catalog, and planetary previews
+      - name: Render cockpit, catalog, objective, and planetary previews
         env:
           SCIENCE_PLAYGROUND_CAPTURE: "1"
           LIBGL_ALWAYS_SOFTWARE: "1"
@@ -47,7 +47,7 @@ jobs:
             --path . \
             --rendering-method gl_compatibility \
             --resolution 1280x720
-          for image in main catalog veyr orun kharis; do
+          for image in main catalog objective veyr orun kharis; do
             test -s "build/preview/${image}.png"
             file "build/preview/${image}.png"
           done
