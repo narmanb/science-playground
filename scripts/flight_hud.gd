@@ -3,6 +3,9 @@ class_name FlightHUD
 
 signal scan_completed(target: Node3D, tier: int)
 
+const ACTIVE_SCAN_FONT_SIZE := 21
+const REPORT_SCAN_FONT_SIZE := 15
+
 @export var ship_path: NodePath
 @export var scan_duration := 3.2
 @export var scan_acquire_dot := 0.94
@@ -160,7 +163,7 @@ func _build_cockpit_controls() -> void:
 	scan_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	scan_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	scan_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	scan_label.add_theme_font_size_override("font_size", 21)
+	scan_label.add_theme_font_size_override("font_size", ACTIVE_SCAN_FONT_SIZE)
 	scan_label.text = "NO TARGET DATA"
 	add_child(scan_label)
 
@@ -270,6 +273,7 @@ func _on_scan_requested() -> void:
 		_cancel_scan("SCAN ABORTED")
 		return
 
+	scan_label.add_theme_font_size_override("font_size", ACTIVE_SCAN_FONT_SIZE)
 	var camera := _camera()
 	if camera == null:
 		scan_label.text = "SCAN ERROR — CAMERA OFFLINE"
@@ -341,11 +345,15 @@ func _complete_scan(camera: Camera3D) -> void:
 	var target := scan_target
 	var distance := camera.global_position.distance_to(target.global_position)
 	var tier := int(target.get_meta("scan_profile_tier", 0))
-	scan_label.text = "%s\n%s\nRANGE %.1f u\n%s" % [
+	var tier_name := _scan_tier_name(target, tier)
+	var report_note := _compact_scan_note(str(target.get_meta("scan_note", "No additional data.")))
+	scan_label.add_theme_font_size_override("font_size", REPORT_SCAN_FONT_SIZE)
+	scan_label.text = "%s   •   %s\n%s COMPLETE   •   RANGE %.1f u\n%s" % [
 		_target_name(target),
 		str(target.get_meta("scan_class", "UNCLASSIFIED")),
+		tier_name,
 		distance,
-		str(target.get_meta("scan_note", "No additional data.")),
+		report_note,
 	]
 	scan_completed.emit(target, tier)
 	scan_target = null
@@ -360,8 +368,28 @@ func _cancel_scan(message: String) -> void:
 	scan_progress = 0.0
 	scan_signal = 0.0
 	scan_button.text = "SCAN"
+	scan_label.add_theme_font_size_override("font_size", ACTIVE_SCAN_FONT_SIZE)
 	scan_label.text = message
 	queue_redraw()
+
+
+func _scan_tier_name(target: Node3D, tier: int) -> String:
+	if not target.has_meta("scan_profile_max_tier"):
+		return "SURVEY"
+	match clampi(tier, 0, 2):
+		0:
+			return "REMOTE SURVEY"
+		1:
+			return "SPECTRAL PASS"
+		_:
+			return "PROXIMITY PASS"
+
+
+func _compact_scan_note(note: String) -> String:
+	return note \
+		.trim_prefix("[REMOTE SURVEY] ") \
+		.trim_prefix("[SPECTRAL PASS] ") \
+		.trim_prefix("[PROXIMITY PASS] ")
 
 
 func _find_scan_target(camera: Camera3D, minimum_dot: float) -> Node3D:
