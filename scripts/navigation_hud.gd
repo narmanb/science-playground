@@ -1,6 +1,8 @@
 extends Control
 class_name NavigationHUD
 
+signal target_changed(target: Node3D, mode: String)
+
 @export var ship_path: NodePath
 @export var all_target_hold_seconds := 0.65
 
@@ -231,6 +233,8 @@ func _on_nav_button_up() -> void:
 func _update_button() -> void:
 	var target := current_target()
 	nav_button.text = "NAV %s\n%s" % [cycle_mode, _target_name(target) if target != null else "NONE"]
+	if target != null:
+		target_changed.emit(target, cycle_mode)
 
 
 func _target_name(target: Node3D) -> String:
