@@ -47,7 +47,7 @@ jobs:
             --path . \
             --rendering-method gl_compatibility \
             --resolution 1280x720
-          for image in main catalog objective science_nav approach veyr orun kharis; do
+          for image in main catalog objective science_nav approach braking veyr orun kharis; do
             test -s "build/preview/${image}.png"
             file "build/preview/${image}.png"
           done
