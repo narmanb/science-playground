@@ -122,7 +122,7 @@ func _update_display() -> void:
 		elif max_tier <= 0:
 			lines.append("%s   —   SURVEY COMPLETE" % body_name)
 		else:
-			var tier_name := TIER_NAMES[clampi(achieved, 0, TIER_NAMES.size() - 1)]
+			var tier_name: String = String(TIER_NAMES[clampi(achieved, 0, TIER_NAMES.size() - 1)])
 			lines.append("%s   —   %s   (%d/%d)" % [body_name, tier_name, achieved + 1, max_tier + 1])
 
 	lines.append("")
