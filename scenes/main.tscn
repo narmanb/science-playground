@@ -27,7 +27,7 @@ environment = SubResource("Environment_space")
 script = ExtResource("1_system")
 
 [node name="Ship" type="RigidBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 310, 3, 112)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 220, 50, 80)
 mass = 1.6
 can_sleep = false
 script = ExtResource("2_ship")
@@ -49,7 +49,7 @@ far = 1800.0
 [node name="CabinLight" type="OmniLight3D" parent="Ship/CameraRig"]
 position = Vector3(0, 0.15, -1.3)
 omni_range = 7.5
-light_energy = 1.15
+light_energy = 0.82
 light_color = Color(0.46, 0.69, 0.86, 1)
 shadow_enabled = false
 
