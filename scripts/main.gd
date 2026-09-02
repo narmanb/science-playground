@@ -151,9 +151,10 @@ func _capture_preview() -> void:
 		get_tree().quit(1)
 		return
 
-	# Prove that explicit NAV intent outranks a better-centered competing body only
-	# while the selected target remains inside the legitimate acquisition cone.
-	# This temporary decoy exists exclusively in CI and is removed immediately.
+	# Prove both sides of NAV-aware acquisition. First, explicit NAV intent must
+	# outrank a better-centered competing body while Veyr is still inside the
+	# legitimate cone. Then, once Veyr is rotated outside that cone, the centered
+	# competitor must win so NAV never behaves like an invisible hard lock.
 	var camera := ship.get_node_or_null("CameraRig/Camera3D") as Camera3D
 	if camera == null:
 		push_error("NAV-aware scan test could not find the cockpit camera.")
@@ -164,9 +165,10 @@ func _capture_preview() -> void:
 	if side_direction.length_squared() < 0.001:
 		side_direction = target_direction.cross(Vector3.RIGHT)
 	side_direction = side_direction.normalized()
-	var offset_angle := deg_to_rad(10.0)
-	var offset_forward := (target_direction * cos(offset_angle) + side_direction * sin(offset_angle)).normalized()
-	ship.look_at(ship.global_position + offset_forward * 100.0, Vector3.UP)
+
+	var inside_angle := deg_to_rad(10.0)
+	var inside_forward := (target_direction * cos(inside_angle) + side_direction * sin(inside_angle)).normalized()
+	ship.look_at(ship.global_position + inside_forward * 100.0, Vector3.UP)
 	for _frame in 2:
 		await get_tree().process_frame
 
@@ -184,6 +186,26 @@ func _capture_preview() -> void:
 	var preferred_acquisition := hud._find_scan_target(camera, hud.scan_acquire_dot)
 	if preferred_acquisition != science_target:
 		push_error("Scanner allowed a centered competitor to steal acquisition from the valid selected NAV target.")
+		get_tree().quit(1)
+		return
+
+	var outside_angle := deg_to_rad(30.0)
+	target_direction = (science_target.global_position - camera.global_position).normalized()
+	side_direction = target_direction.cross(Vector3.UP)
+	if side_direction.length_squared() < 0.001:
+		side_direction = target_direction.cross(Vector3.RIGHT)
+	side_direction = side_direction.normalized()
+	var outside_forward := (target_direction * cos(outside_angle) + side_direction * sin(outside_angle)).normalized()
+	ship.look_at(ship.global_position + outside_forward * 100.0, Vector3.UP)
+	for _frame in 2:
+		await get_tree().process_frame
+	camera = ship.get_node_or_null("CameraRig/Camera3D") as Camera3D
+	decoy.global_position = camera.global_position + (-camera.global_basis.z) * 100.0
+	await get_tree().process_frame
+
+	var free_acquisition := hud._find_scan_target(camera, hud.scan_acquire_dot)
+	if free_acquisition != decoy:
+		push_error("Scanner kept the NAV target after it left the acquisition cone instead of returning to free scanning.")
 		get_tree().quit(1)
 		return
 	decoy.queue_free()
