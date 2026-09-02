@@ -12,6 +12,7 @@ const REPORT_SCAN_FONT_SIZE := 15
 @export var scan_hold_dot := 0.90
 
 var ship: ShipController
+var navigation_hud: NavigationHUD
 var left_touch_id := -1
 var right_touch_id := -1
 var left_value := Vector2.ZERO
@@ -39,9 +40,9 @@ func _ready() -> void:
 	ship.flight_mode_changed.connect(_on_mode_changed)
 	ship.inertial_lock_changed.connect(_on_lock_changed)
 	ship.scan_requested.connect(_on_scan_requested)
-	var navigation_hud := get_parent().get_node_or_null("NavigationHUD")
-	if navigation_hud != null and navigation_hud.has_signal("target_changed"):
-		navigation_hud.connect("target_changed", _on_navigation_target_changed)
+	navigation_hud = get_parent().get_node_or_null("NavigationHUD") as NavigationHUD
+	if navigation_hud != null:
+		navigation_hud.target_changed.connect(_on_navigation_target_changed)
 	_on_mode_changed(ShipController.MODE_NAMES[ship.flight_mode])
 	_on_lock_changed(ship.inertial_lock)
 	_layout_ui()
@@ -411,9 +412,25 @@ func _compact_scan_note(note: String) -> String:
 
 
 func _find_scan_target(camera: Camera3D, minimum_dot: float) -> Node3D:
+	var forward := -camera.global_basis.z
+
+	# Respect explicit pilot intent when the selected NAV body is genuinely
+	# inside the acquisition cone. A different body may sit closer to the exact
+	# reticle center, but it should not steal the scan while the selected target
+	# remains a valid sensor solution.
+	if navigation_hud != null:
+		var preferred := navigation_hud.current_target()
+		if preferred != null and is_instance_valid(preferred):
+			var preferred_delta := preferred.global_position - camera.global_position
+			if preferred_delta.length_squared() >= 0.0001:
+				var preferred_score := forward.dot(preferred_delta.normalized())
+				if preferred_score >= minimum_dot:
+					return preferred
+
+	# If the NAV target is outside the cone, retain free-scanning behavior and
+	# acquire whichever visible scannable body is best centered.
 	var best_target: Node3D = null
 	var best_score := minimum_dot
-	var forward := -camera.global_basis.z
 	for candidate in get_tree().get_nodes_in_group("scannable"):
 		if not candidate is Node3D:
 			continue
