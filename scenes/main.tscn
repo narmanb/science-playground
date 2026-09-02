@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/procedural_system.gd" id="1_system"]
 [ext_resource type="Script" path="res://scripts/ship_controller.gd" id="2_ship"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://assets/generated/cockpit_blockout.glb" id="4_cockpit"]
 [ext_resource type="Script" path="res://scripts/main.gd" id="5_main"]
 [ext_resource type="Script" path="res://scripts/visual_enhancer.gd" id="6_visual"]
+[ext_resource type="Script" path="res://scripts/velocity_vector_hud.gd" id="7_velocity"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -52,7 +53,7 @@ position = Vector3(0, 0.55, -0.15)
 current = true
 fov = 78.0
 near = 0.04
-far = 1800.0
+far = 2800.0
 
 [node name="CockpitModel" parent="Ship/CameraRig" instance=ExtResource("4_cockpit")]
 
@@ -64,6 +65,16 @@ light_color = Color(0.46, 0.69, 0.86, 1)
 shadow_enabled = false
 
 [node name="HUDLayer" type="CanvasLayer" parent="."]
+
+[node name="VelocityVectorHUD" type="Control" parent="HUDLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("7_velocity")
+ship_path = NodePath("../../Ship")
 
 [node name="FlightHUD" type="Control" parent="HUDLayer"]
 layout_mode = 3
