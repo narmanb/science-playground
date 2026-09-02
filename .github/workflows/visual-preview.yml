@@ -37,7 +37,7 @@ jobs:
       - name: Import project
         run: godot --headless --path . --editor --quit
 
-      - name: Render cockpit preview
+      - name: Render cockpit and planetary previews
         env:
           SCIENCE_PLAYGROUND_CAPTURE: "1"
           LIBGL_ALWAYS_SOFTWARE: "1"
@@ -47,13 +47,15 @@ jobs:
             --path . \
             --rendering-method gl_compatibility \
             --resolution 1280x720
-          test -s build/preview/main.png
-          file build/preview/main.png
+          for image in main veyr orun kharis; do
+            test -s "build/preview/${image}.png"
+            file "build/preview/${image}.png"
+          done
 
-      - name: Upload visual preview
+      - name: Upload visual previews
         uses: actions/upload-artifact@v4
         with:
           name: science-playground-visual-preview
-          path: build/preview/main.png
+          path: build/preview/*.png
           if-no-files-found: error
           retention-days: 14
