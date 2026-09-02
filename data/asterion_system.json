@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "system_name": "Asterion Prototype",
+  "seed": 731942,
+  "scale_note": "Physical values are real-unit metadata; Godot uses a compressed playable spatial scale.",
+  "star": {
+    "name": "Asterion",
+    "mass_solar": 0.73,
+    "radius_solar": 0.777425,
+    "luminosity_solar": 0.283982,
+    "effective_temperature_k": 4778.8,
+    "spectral_hint": "K-type orange dwarf",
+    "calculation_notes": [
+      "Luminosity currently uses a piecewise main-sequence mass-luminosity approximation.",
+      "Radius currently uses R ~ M^0.8."
+    ]
+  },
+  "bodies": [
+    {
+      "name": "Nysa",
+      "kind": "oceanic_super_earth_candidate",
+      "mass_earth": 2.6,
+      "radius_earth": 1.34,
+      "surface_gravity_m_s2": 14.2,
+      "surface_gravity_g": 1.448,
+      "semimajor_axis_au": 0.68,
+      "orbital_period_days": 239.713,
+      "bond_albedo": 0.28,
+      "equilibrium_temperature_k": 248.3,
+      "rotation_period_hours": 31.0,
+      "atmosphere": {
+        "surface_pressure_bar": 2.7,
+        "composition": {
+          "N2": 0.78,
+          "CO2": 0.12,
+          "H2O_and_trace": 0.1
+        },
+        "status": "artistic placeholder; greenhouse model not yet connected"
+      },
+      "rings": {
+        "present": true,
+        "art_direction": "thin icy-mineral ring plane with visibly uneven density"
+      },
+      "science_status": "mixed_calculated_and_placeholder"
+    },
+    {
+      "name": "Thale",
+      "kind": "rocky_moon",
+      "parent": "Nysa",
+      "mass_earth": 0.1,
+      "radius_earth": 0.48,
+      "surface_gravity_m_s2": 4.256,
+      "science_status": "prototype_placeholder_orbit"
+    }
+  ]
+}
