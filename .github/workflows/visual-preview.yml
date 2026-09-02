@@ -7,6 +7,7 @@ on:
       - "project.godot"
       - "scenes/**"
       - "scripts/**"
+      - "shaders/**"
       - "assets/**"
       - "data/**"
       - ".github/workflows/visual-preview.yml"
