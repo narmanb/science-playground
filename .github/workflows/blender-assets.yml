@@ -1,0 +1,60 @@
+name: Generate Blender Assets
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "tools/blender/**"
+      - ".github/workflows/blender-assets.yml"
+
+env:
+  BLENDER_VERSION: "4.5.13"
+  BLENDER_ARCHIVE: "blender-4.5.13-linux-x64.tar.xz"
+  BLENDER_URL: "https://download.blender.org/release/Blender4.5/blender-4.5.13-linux-x64.tar.xz"
+
+jobs:
+  generate-assets:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Blender
+        id: blender-cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/blender
+          key: blender-${{ runner.os }}-${{ env.BLENDER_VERSION }}
+
+      - name: Download Blender 4.5 LTS
+        if: steps.blender-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p .cache/blender
+          curl --fail --location --retry 3 "$BLENDER_URL" --output "/tmp/$BLENDER_ARCHIVE"
+          tar -xJf "/tmp/$BLENDER_ARCHIVE" --strip-components=1 -C .cache/blender
+
+      - name: Verify Blender
+        run: .cache/blender/blender --version
+
+      - name: Generate cockpit GLB
+        run: |
+          mkdir -p build/blender
+          .cache/blender/blender \
+            --background \
+            --python tools/blender/generate_cockpit_blockout.py \
+            -- \
+            --output build/blender/cockpit_blockout.glb
+
+      - name: Verify generated asset
+        run: |
+          test -s build/blender/cockpit_blockout.glb
+          ls -lh build/blender/cockpit_blockout.glb
+
+      - name: Upload Blender assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: science-playground-blender-assets
+          path: build/blender/
+          if-no-files-found: error
+          retention-days: 30
