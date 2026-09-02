@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/procedural_system.gd" id="1_system"]
 [ext_resource type="Script" path="res://scripts/ship_controller.gd" id="2_ship"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/world_rotation_controller.gd" id="9_rotation"]
 [ext_resource type="Script" path="res://scripts/celestial_collision_controller.gd" id="10_collision"]
 [ext_resource type="Script" path="res://scripts/proximity_hud.gd" id="11_proximity"]
+[ext_resource type="Script" path="res://scripts/science_scan_profile.gd" id="12_scan_profile"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -46,6 +47,10 @@ script = ExtResource("9_rotation")
 
 [node name="CelestialCollisionController" type="Node" parent="."]
 script = ExtResource("10_collision")
+
+[node name="ScienceScanProfile" type="Node" parent="."]
+script = ExtResource("12_scan_profile")
+ship_path = NodePath("../Ship")
 
 [node name="Ship" type="RigidBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 310, 0, 130)
