@@ -127,14 +127,16 @@ func _capture_preview() -> void:
 	# Simulate a previously completed Remote survey on Veyr without writing it to
 	# disk. Face the target so the safe-margin test exercises 100% fore/aft radial
 	# braking authority deterministically, then give the frozen CI ship a modest
-	# stored closing velocity.
+	# target-relative closing velocity. Matching Veyr's orbital velocity first
+	# guarantees the new exact envelope predictor sees a true intercept rather
+	# than a world-space radial approach that drifts off the moving target.
 	science_log.discoveries["VEYR"] = 0
 	ship.look_at(science_target.global_position, Vector3.UP)
 	for _frame in 2:
 		await get_tree().process_frame
 	var toward_veyr := science_target.global_position - ship.global_position
 	if toward_veyr.length_squared() > 0.0001:
-		ship.linear_velocity = toward_veyr.normalized() * 6.0
+		ship.linear_velocity = science_objective.estimated_target_velocity + toward_veyr.normalized() * 6.0
 	for _frame in 6:
 		await get_tree().process_frame
 	var approach_text := science_objective.objective_label.text
@@ -159,8 +161,9 @@ func _capture_preview() -> void:
 		return
 
 	# Move the frozen CI ship just outside Veyr's Spectral boundary and give it a
-	# closing speed whose aligned thrust-only stopping distance is longer than the
-	# remaining gap. This must flip the same instrument from margin to emergency.
+	# target-relative closing speed whose aligned thrust-only stopping distance is
+	# longer than the remaining gap. This must flip the same instrument from
+	# margin to emergency while preserving a true envelope intercept.
 	var veyr_radius := float(science_target.get_meta("collision_radius", 0.0))
 	var spectral_radii := float(science_target.get_meta("scan_profile_spectral_clearance_radii", 0.0))
 	if veyr_radius <= 0.0 or spectral_radii <= 0.0:
@@ -173,7 +176,7 @@ func _capture_preview() -> void:
 	outward = outward.normalized()
 	var braking_gap := 8.0
 	ship.global_position = science_target.global_position + outward * (veyr_radius * (1.0 + spectral_radii) + braking_gap)
-	ship.linear_velocity = -outward * 32.0
+	ship.linear_velocity = science_objective.estimated_target_velocity - outward * 32.0
 	ship.angular_velocity = Vector3.ZERO
 	ship.look_at(science_target.global_position, Vector3.UP)
 	for _frame in 8:
