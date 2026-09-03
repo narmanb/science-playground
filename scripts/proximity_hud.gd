@@ -10,6 +10,8 @@ var ship: ShipController
 var warning_label: Label
 var previous_positions: Dictionary = {}
 var estimated_velocities: Dictionary = {}
+var avoidance_delta_v := 0.0
+var avoidance_deflection_deg := 0.0
 
 
 func _ready() -> void:
@@ -33,6 +35,8 @@ func _notification(what: int) -> void:
 func _process(delta: float) -> void:
 	if ship == null:
 		return
+	avoidance_delta_v = 0.0
+	avoidance_deflection_deg = 0.0
 	_update_body_velocities(delta)
 	var hazard := _relevant_body()
 	if hazard.is_empty():
@@ -78,10 +82,21 @@ func _process(delta: float) -> void:
 	var cpa_text := "TRAJECTORY HOLD"
 	if predicted_in_horizon:
 		if predicted_clearance <= 0.0:
-			cpa_text = "CPA %.1fs   •   IMPACT DEPTH %.1f u INSIDE SHELL" % [
-				time_to_cpa,
-				absf(predicted_clearance),
-			]
+			var escape := _collision_cone_escape(body, radius)
+			if not escape.is_empty():
+				avoidance_delta_v = float(escape["delta_v"])
+				avoidance_deflection_deg = float(escape["deflection_deg"])
+				cpa_text = "CPA %.1fs   •   DEPTH %.1f u   •   MIN ESC Δv %.1f u/s   •   DEFLECT %.1f°" % [
+					time_to_cpa,
+					absf(predicted_clearance),
+					avoidance_delta_v,
+					avoidance_deflection_deg,
+				]
+			else:
+				cpa_text = "CPA %.1fs   •   IMPACT DEPTH %.1f u INSIDE SHELL" % [
+					time_to_cpa,
+					absf(predicted_clearance),
+				]
 		else:
 			cpa_text = "CPA %.1fs   •   PRED CLR %.1f u" % [time_to_cpa, predicted_clearance]
 	elif future_cpa:
@@ -136,6 +151,36 @@ func _trajectory_for(body: Node3D, radius: float) -> Dictionary:
 		"time": time_to_cpa,
 		"clearance": predicted_position.length() - radius,
 		"future": future,
+	}
+
+
+func _collision_cone_escape(body: Node3D, radius: float) -> Dictionary:
+	# Under the same constant-relative-velocity assumption as CPA, all velocity
+	# vectors whose directions fall inside the body's tangent cone intersect the
+	# collision sphere. The shortest instantaneous velocity change that reaches a
+	# tangent trajectory is the perpendicular distance from the current relative
+	# velocity vector to the nearest cone-boundary ray.
+	var relative_position := ship.global_position - body.global_position
+	var range_to_center := relative_position.length()
+	if range_to_center <= radius or range_to_center <= 0.0001:
+		return {}
+
+	var relative_velocity := ship.linear_velocity - _body_velocity(body)
+	var speed := relative_velocity.length()
+	if speed <= 0.0001:
+		return {}
+
+	var toward_body := -relative_position / range_to_center
+	var velocity_direction := relative_velocity / speed
+	var approach_angle := acos(clampf(toward_body.dot(velocity_direction), -1.0, 1.0))
+	var cone_half_angle := asin(clampf(radius / range_to_center, 0.0, 1.0))
+	if approach_angle >= cone_half_angle:
+		return {}
+
+	var deflection := cone_half_angle - approach_angle
+	return {
+		"delta_v": speed * sin(deflection),
+		"deflection_deg": rad_to_deg(deflection),
 	}
 
 
