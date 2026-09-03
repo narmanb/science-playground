@@ -54,6 +54,9 @@ jobs:
             exit 1
           fi
 
+      - name: Verify CPA and collision-cone trajectory math
+        run: godot --headless --path . --script tools/tests/trajectory_math_smoke.gd
+
       - name: Boot main scene and reject runtime script errors
         shell: bash
         run: |
