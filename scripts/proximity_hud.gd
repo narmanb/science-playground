@@ -86,7 +86,7 @@ func _process(delta: float) -> void:
 			if not escape.is_empty():
 				avoidance_delta_v = float(escape["delta_v"])
 				avoidance_deflection_deg = float(escape["deflection_deg"])
-				cpa_text = "CPA %.1fs   •   DEPTH %.1f u   •   MIN ESC Δv %.1f u/s   •   DEFLECT %.1f°" % [
+				cpa_text = "CPA %.1fs   •   IMPACT DEPTH %.1f u   •   MIN ESC Δv %.1f u/s   •   DEFLECT %.1f°" % [
 					time_to_cpa,
 					absf(predicted_clearance),
 					avoidance_delta_v,
