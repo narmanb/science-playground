@@ -22,6 +22,42 @@ static func closest_approach(relative_position: Vector3, relative_velocity: Vect
 	}
 
 
+static func sphere_entry(relative_position: Vector3, relative_velocity: Vector3, radius: float) -> Dictionary:
+	# Solve |r + vt|^2 = R^2 for the earliest non-negative time. This is an exact
+	# line/sphere intersection under the same constant-relative-velocity model as
+	# closest_approach(), so it is suitable for both collision and science-zone
+	# entry prediction without assuming a purely radial trajectory.
+	if radius <= 0.0:
+		return {"intersects": false, "time": 0.0, "inside": false}
+
+	var c := relative_position.length_squared() - radius * radius
+	if c <= 0.0:
+		return {"intersects": true, "time": 0.0, "inside": true}
+
+	var a := relative_velocity.length_squared()
+	if a < 0.0001:
+		return {"intersects": false, "time": 0.0, "inside": false}
+
+	var b := 2.0 * relative_position.dot(relative_velocity)
+	var discriminant := b * b - 4.0 * a * c
+	if discriminant < 0.0:
+		return {"intersects": false, "time": 0.0, "inside": false}
+
+	var root := sqrt(maxf(discriminant, 0.0))
+	var denominator := 2.0 * a
+	var entry_time := (-b - root) / denominator
+	var exit_time := (-b + root) / denominator
+	if exit_time < 0.0:
+		return {"intersects": false, "time": 0.0, "inside": false}
+
+	return {
+		"intersects": entry_time >= 0.0,
+		"time": maxf(entry_time, 0.0),
+		"exit_time": maxf(exit_time, 0.0),
+		"inside": false,
+	}
+
+
 static func collision_cone_escape(
 	relative_position: Vector3,
 	relative_velocity: Vector3,
