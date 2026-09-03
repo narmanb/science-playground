@@ -1,6 +1,8 @@
 extends Control
 class_name ProximityHUD
 
+const TrajectoryMathScript = preload("res://scripts/trajectory_math.gd")
+
 @export var ship_path: NodePath
 @export var caution_clearance_radii := 6.0
 @export var danger_clearance_radii := 1.4
@@ -135,53 +137,13 @@ func _body_velocity(body: Node3D) -> Vector3:
 func _trajectory_for(body: Node3D, radius: float) -> Dictionary:
 	var relative_position := ship.global_position - body.global_position
 	var relative_velocity := ship.linear_velocity - _body_velocity(body)
-	var speed_squared := relative_velocity.length_squared()
-	if speed_squared < 0.0001:
-		return {
-			"time": 0.0,
-			"clearance": relative_position.length() - radius,
-			"future": false,
-		}
-
-	var raw_time := -relative_position.dot(relative_velocity) / speed_squared
-	var future := raw_time > 0.0
-	var time_to_cpa := maxf(raw_time, 0.0)
-	var predicted_position := relative_position + relative_velocity * time_to_cpa
-	return {
-		"time": time_to_cpa,
-		"clearance": predicted_position.length() - radius,
-		"future": future,
-	}
+	return TrajectoryMathScript.closest_approach(relative_position, relative_velocity, radius)
 
 
 func _collision_cone_escape(body: Node3D, radius: float) -> Dictionary:
-	# Under the same constant-relative-velocity assumption as CPA, all velocity
-	# vectors whose directions fall inside the body's tangent cone intersect the
-	# collision sphere. The shortest instantaneous velocity change that reaches a
-	# tangent trajectory is the perpendicular distance from the current relative
-	# velocity vector to the nearest cone-boundary ray.
 	var relative_position := ship.global_position - body.global_position
-	var range_to_center := relative_position.length()
-	if range_to_center <= radius or range_to_center <= 0.0001:
-		return {}
-
 	var relative_velocity := ship.linear_velocity - _body_velocity(body)
-	var speed := relative_velocity.length()
-	if speed <= 0.0001:
-		return {}
-
-	var toward_body := -relative_position / range_to_center
-	var velocity_direction := relative_velocity / speed
-	var approach_angle := acos(clampf(toward_body.dot(velocity_direction), -1.0, 1.0))
-	var cone_half_angle := asin(clampf(radius / range_to_center, 0.0, 1.0))
-	if approach_angle >= cone_half_angle:
-		return {}
-
-	var deflection := cone_half_angle - approach_angle
-	return {
-		"delta_v": speed * sin(deflection),
-		"deflection_deg": rad_to_deg(deflection),
-	}
+	return TrajectoryMathScript.collision_cone_escape(relative_position, relative_velocity, radius)
 
 
 func _relevant_body() -> Dictionary:
