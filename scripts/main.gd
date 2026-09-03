@@ -21,7 +21,8 @@ func _capture_preview() -> void:
 	var nav := get_node_or_null("HUDLayer/NavigationHUD") as NavigationHUD
 	var science_log := get_node_or_null("HUDLayer/ScienceLogHUD") as ScienceLogHUD
 	var science_objective := get_node_or_null("HUDLayer/ScienceObjectiveHUD") as ScienceObjectiveHUD
-	if ship == null or hud == null or nav == null or science_log == null or science_objective == null:
+	var proximity := get_node_or_null("HUDLayer/ProximityHUD") as ProximityHUD
+	if ship == null or hud == null or nav == null or science_log == null or science_objective == null or proximity == null:
 		push_error("Visual smoke test could not find the ship or cockpit HUD layers.")
 		get_tree().quit(1)
 		return
@@ -248,6 +249,65 @@ func _capture_preview() -> void:
 		get_tree().quit(1)
 		return
 	decoy.queue_free()
+	await get_tree().process_frame
+
+	# Exercise trajectory prediction far above the orbital plane so the temporary
+	# CI body is the only relevant hazard. The ship begins outside the ordinary
+	# proximity band: a direct intercept must still surface early because its CPA
+	# crosses the collision shell inside the prediction horizon.
+	science_objective.visible = false
+	ship.freeze = true
+	ship.global_position = Vector3(0.0, 5000.0, 0.0)
+	ship.angular_velocity = Vector3.ZERO
+	ship.linear_velocity = Vector3(12.0, 0.0, 0.0)
+	ship.look_at(ship.global_position + Vector3.RIGHT * 100.0, Vector3.UP)
+
+	var cpa_target := Node3D.new()
+	cpa_target.name = "CITrajectoryHazard"
+	cpa_target.set_meta("scan_name", "CI HAZARD")
+	cpa_target.set_meta("collision_radius", 20.0)
+	add_child(cpa_target)
+	cpa_target.add_to_group("scannable")
+	cpa_target.global_position = ship.global_position + Vector3(220.0, 0.0, 0.0)
+	for _frame in 4:
+		await get_tree().process_frame
+
+	var intercept_text := proximity.warning_label.text
+	if not proximity.warning_label.visible or not intercept_text.contains("IMPACT CORRIDOR"):
+		push_error("CPA hazard predictor did not flag a direct future collision outside the ordinary proximity band.")
+		get_tree().quit(1)
+		return
+	if not intercept_text.contains("CPA") or not intercept_text.contains("IMPACT DEPTH"):
+		push_error("Impact-corridor warning did not expose closest-approach time and shell penetration depth.")
+		get_tree().quit(1)
+		return
+	if not _save_view(CAPTURE_DIR + "/intercept.png"):
+		get_tree().quit(1)
+		return
+
+	# Offset the same body sideways while preserving the same high forward speed.
+	# Radial approach is still substantial, but the projected closest approach now
+	# clears the shell. The HUD must distinguish that geometry from an intercept.
+	cpa_target.global_position = ship.global_position + Vector3(220.0, 60.0, 0.0)
+	for _frame in 4:
+		await get_tree().process_frame
+	var flyby_text := proximity.warning_label.text
+	if not proximity.warning_label.visible or not flyby_text.contains("PROJECTED FLYBY"):
+		push_error("CPA hazard predictor treated a high-speed tangential pass as a collision intercept.")
+		get_tree().quit(1)
+		return
+	if not flyby_text.contains("CPA") or not flyby_text.contains("PRED CLR"):
+		push_error("Projected-flyby warning did not expose closest-approach time and positive predicted clearance.")
+		get_tree().quit(1)
+		return
+	if flyby_text.contains("IMPACT DEPTH"):
+		push_error("Projected-flyby warning retained impact-only trajectory language.")
+		get_tree().quit(1)
+		return
+	if not _save_view(CAPTURE_DIR + "/flyby.png"):
+		get_tree().quit(1)
+		return
+	cpa_target.queue_free()
 	await get_tree().process_frame
 
 	# The remaining views are visual QA only. Freeze and reposition the test ship
