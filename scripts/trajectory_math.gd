@@ -1,0 +1,52 @@
+extends RefCounted
+class_name TrajectoryMath
+
+
+static func closest_approach(relative_position: Vector3, relative_velocity: Vector3, radius: float) -> Dictionary:
+	var speed_squared := relative_velocity.length_squared()
+	if speed_squared < 0.0001:
+		return {
+			"time": 0.0,
+			"clearance": relative_position.length() - radius,
+			"future": false,
+		}
+
+	var raw_time := -relative_position.dot(relative_velocity) / speed_squared
+	var future := raw_time > 0.0
+	var time_to_cpa := maxf(raw_time, 0.0)
+	var predicted_position := relative_position + relative_velocity * time_to_cpa
+	return {
+		"time": time_to_cpa,
+		"clearance": predicted_position.length() - radius,
+		"future": future,
+	}
+
+
+static func collision_cone_escape(relative_position: Vector3, relative_velocity: Vector3, radius: float) -> Dictionary:
+	# Under constant relative velocity, the body subtends a collision cone whose
+	# half-angle is asin(radius / range). If the current velocity vector lies
+	# inside that cone, the minimum instantaneous delta-v that reaches a tangent
+	# trajectory is the perpendicular distance from the velocity vector to the
+	# nearest cone-boundary ray.
+	var range_to_center := relative_position.length()
+	if radius <= 0.0 or range_to_center <= radius or range_to_center <= 0.0001:
+		return {}
+
+	var speed := relative_velocity.length()
+	if speed <= 0.0001:
+		return {}
+
+	var toward_body := -relative_position / range_to_center
+	var velocity_direction := relative_velocity / speed
+	var approach_angle := acos(clampf(toward_body.dot(velocity_direction), -1.0, 1.0))
+	var cone_half_angle := asin(clampf(radius / range_to_center, 0.0, 1.0))
+	if approach_angle >= cone_half_angle:
+		return {}
+
+	var deflection := cone_half_angle - approach_angle
+	return {
+		"delta_v": speed * sin(deflection),
+		"deflection_deg": rad_to_deg(deflection),
+		"cone_half_angle_deg": rad_to_deg(cone_half_angle),
+		"approach_angle_deg": rad_to_deg(approach_angle),
+	}
