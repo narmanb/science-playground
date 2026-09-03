@@ -1,6 +1,8 @@
 extends Control
 class_name ScienceObjectiveHUD
 
+const TrajectoryMathScript = preload("res://scripts/trajectory_math.gd")
+
 @export var navigation_hud_path: NodePath
 @export var science_log_hud_path: NodePath
 @export var flight_hud_path: NodePath
@@ -20,6 +22,9 @@ var previous_target_position := Vector3.ZERO
 var estimated_target_velocity := Vector3.ZERO
 var has_previous_target_position := false
 var braking_required := false
+var envelope_intercept_predicted := false
+var envelope_entry_eta := 0.0
+var envelope_miss_distance := 0.0
 
 
 func _ready() -> void:
@@ -62,6 +67,9 @@ func _process(delta: float) -> void:
 
 	_update_target_velocity(target, delta)
 	braking_required = false
+	envelope_intercept_predicted = false
+	envelope_entry_eta = 0.0
+	envelope_miss_distance = 0.0
 	var objective := _objective_for(target)
 	var approach_lines := _approach_guidance_lines(target)
 	var lines: Array[String] = [objective]
@@ -133,11 +141,12 @@ func _approach_guidance_lines(target: Node3D) -> Array[String]:
 	var clearance := maxf(center_distance - radius, 0.0)
 	var clearance_radii := clearance / radius
 	var to_target := target.global_position - ship.global_position
+	var relative_position := ship.global_position - target.global_position
+	var relative_velocity := ship.linear_velocity - estimated_target_velocity
 	var closing_speed := 0.0
 	var main_axis_alignment := 0.0
 	if to_target.length_squared() > 0.0001:
 		var target_direction := to_target.normalized()
-		var relative_velocity := ship.linear_velocity - estimated_target_velocity
 		closing_speed = relative_velocity.dot(target_direction)
 		# Main thrust is bidirectional along local +/-Z, so absolute alignment is
 		# the exact fraction of fore/aft thrust currently available radially without
@@ -151,18 +160,33 @@ func _approach_guidance_lines(target: Node3D) -> Array[String]:
 		motion_text = "OPENING %.1f u/s" % absf(closing_speed)
 
 	var envelope_distance := maxf(clearance - required_radii * radius, 0.0)
-	var eta_text := ""
-	if closing_speed > 0.20 and envelope_distance > 0.0:
-		eta_text = "   •   ETA %.0fs" % (envelope_distance / closing_speed)
+	var envelope_center_radius := radius * (1.0 + required_radii)
+	var entry := TrajectoryMathScript.sphere_entry(relative_position, relative_velocity, envelope_center_radius)
+	var cpa := TrajectoryMathScript.closest_approach(relative_position, relative_velocity, envelope_center_radius)
+	var trajectory_text := "NO PASS INTERCEPT"
+	if bool(entry["intersects"]):
+		envelope_intercept_predicted = true
+		envelope_entry_eta = float(entry["time"])
+		trajectory_text = "PASS INTERCEPT %.0fs" % envelope_entry_eta
+	elif bool(cpa["future"]):
+		envelope_miss_distance = maxf(float(cpa["clearance"]), 0.0)
+		trajectory_text = "MISS %.1f u @ CPA %.0fs" % [envelope_miss_distance, float(cpa["time"])]
 
-	lines.append("ENVELOPE ≤%.1f R   •   NOW %.1f R   •   %s%s" % [
+	lines.append("ENVELOPE ≤%.1f R   •   NOW %.1f R   •   %s   •   %s" % [
 		required_radii,
 		clearance_radii,
 		motion_text,
-		eta_text,
+		trajectory_text,
 	])
 
+	# Braking guidance is meaningful only if the current trajectory actually
+	# reaches the science envelope. A closing trajectory that misses the sphere
+	# needs a lateral/course correction before stopping-distance advice is useful.
 	if closing_speed > 0.20 and envelope_distance > 0.0:
+		if not envelope_intercept_predicted:
+			lines.append("TRAJECTORY MISSES SCIENCE ENVELOPE   •   CORRECT COURSE BEFORE BRAKING")
+			return lines
+
 		var aligned_acceleration := _main_thrust_acceleration(ship) * main_axis_alignment
 		var alignment_percent := int(round(main_axis_alignment * 100.0))
 		if aligned_acceleration <= 0.001:
