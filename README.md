@@ -18,8 +18,9 @@ A Godot 4 Android-first experimental space exploration project. This is not inte
 - Science-priority navigation that can skip fully surveyed targets
 - Contextual science objective derived from the selected NAV target, approach zone, and saved catalog progress
 - Science-envelope guidance showing the next required observation radius, current clearance in body radii, relative closing/opening motion, and ETA when closing
+- Thrust-derived stopping-distance guidance using live ship mass, flight-mode thrust, relative closing speed, and current fore/aft-axis alignment
 - Trajectory-based navigation: destination bearing and actual velocity are separate instruments
-- Celestial collision shells plus altitude, relative closing-speed, and contact-time warnings
+- Celestial collision shells plus altitude, relative closing speed, closest-approach time, predicted miss clearance, and impact-corridor versus projected-flyby warnings
 - Manifest-driven planetary rotation periods represented at accelerated visual time
 - Procedural Asterion system with four primary worlds, a moon, rings, and an asteroid belt
 - Blender Python tooling and GitHub Actions for reproducible modular 3D assets
@@ -51,7 +52,9 @@ The HUD intentionally separates three different concepts:
 
 In Vector and Drift modes, the nose and velocity vector can become dramatically separated. Reaching a destination therefore means changing the trajectory, not merely rotating until the target is centered. The system is deliberately avoiding an autopilot-style “point at icon and hold forward” loop.
 
-Close approaches add another piloting problem. The proximity instrument reports clearance above a body's collision shell, relative radial closing speed against the body's own orbital motion, and estimated contact time when appropriate.
+Close approaches add another piloting problem. The proximity instrument subtracts estimated body motion from the ship's velocity, reports current clearance and radial closing speed, and projects constant-relative-velocity motion forward to the **closest point of approach (CPA)**. It therefore distinguishes a true future collision-shell intercept from a fast tangential flyby. A direct intercept is labeled **IMPACT CORRIDOR** with time to CPA and predicted shell penetration; a non-impacting close pass is labeled **PROJECTED FLYBY** with time to CPA and predicted positive clearance.
+
+The CPA projection is intentionally a short-horizon inertial predictor rather than an orbital propagator. It answers “where does the current relative velocity take me if nobody changes anything?” and updates continuously as the pilot changes the trajectory.
 
 ## Science loop
 
@@ -67,7 +70,9 @@ Major worlds expose progressively deeper observations as the ship approaches:
 
 The best completed depth is written to `user://science_discoveries.json`, so catalog progress survives app restarts. A contextual cockpit objective uses that saved progress and the current approach zone to indicate whether a scan is ready or whether a closer pass is required.
 
-When a closer tier is required, the same profile thresholds used to assign science depth are exposed directly to the cockpit. The objective shows the target envelope in body radii (currently **≤12R** for Spectral and **≤5R** for Proximity on three-tier worlds), current clearance, and relative radial motion after subtracting estimated target orbital movement. When the ship is closing, it also estimates time to the science envelope. This is guidance only; it never steers or brakes the spacecraft.
+When a closer tier is required, the same profile thresholds used to assign science depth are exposed directly to the cockpit. The objective shows the target envelope in body radii (currently **≤12R** for Spectral and **≤5R** for Proximity on three-tier worlds), current clearance, and relative radial motion after subtracting estimated target orbital movement. When the ship is closing, it also estimates time to the science envelope.
+
+The approach instrument also estimates the distance required to remove the current radial closing speed using commanded fore/aft thrust. It uses the ship's live mass, the current flight-mode thrust multiplier, and the actual alignment of the ship's main fore/aft axis with the required radial braking direction. The display therefore distinguishes a positive **BRAKE MARGIN** from **BRAKE / ALIGN NOW** without pretending passive damping or an autopilot will save the approach.
 
 Science-priority NAV searches for the next body whose best completed survey is still below its available maximum. The normal all-body cycle remains available for revisiting completed worlds.
 
@@ -126,8 +131,10 @@ GitHub Actions currently:
 - verifies science-priority NAV skips completed Nysa and selects Veyr;
 - verifies the completed Nysa sensor report clears when NAV moves on;
 - renders and verifies a Veyr Spectral-approach state using the exact ≤12R science envelope, current clearance, relative closing rate, and ETA;
+- verifies thrust-only stopping distance, 100% main-axis alignment in the deterministic safe case, positive brake margin, and the transition to **BRAKE / ALIGN NOW** when stopping distance exceeds the remaining envelope gap;
 - adversarially tests NAV-aware scan acquisition with a temporary centered competitor, including both selected-target priority inside the cone and free-scan fallback outside it;
-- renders close inspection frames for Veyr, Orun, and Kharis so planetary shader changes can be reviewed without installing every intermediate APK.
+- tests trajectory hazards with a remote CI-only body: a direct intercept must render **IMPACT CORRIDOR** with CPA and shell penetration, while a high-speed offset pass must render **PROJECTED FLYBY** with positive predicted clearance;
+- requires eleven visual artifacts: active flight, catalog, objective, science NAV, approach, braking, intercept, flyby, and close inspection frames for Veyr, Orun, and Kharis.
 
 ## Project layout
 
