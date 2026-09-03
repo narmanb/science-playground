@@ -4,6 +4,7 @@ class_name ProximityHUD
 @export var ship_path: NodePath
 @export var caution_clearance_radii := 6.0
 @export var danger_clearance_radii := 1.4
+@export var prediction_horizon_s := 60.0
 
 var ship: ShipController
 var warning_label: Label
@@ -16,7 +17,9 @@ func _ready() -> void:
 	ship = get_node(ship_path) as ShipController
 	warning_label = Label.new()
 	warning_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	warning_label.add_theme_font_size_override("font_size", 18)
+	warning_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	warning_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	warning_label.add_theme_font_size_override("font_size", 16)
 	warning_label.visible = false
 	add_child(warning_label)
 	_layout_ui()
@@ -31,15 +34,24 @@ func _process(delta: float) -> void:
 	if ship == null:
 		return
 	_update_body_velocities(delta)
-	var nearest := _nearest_body()
-	if nearest.is_empty():
+	var hazard := _relevant_body()
+	if hazard.is_empty():
 		warning_label.visible = false
 		return
 
-	var body: Node3D = nearest["body"]
-	var radius: float = nearest["radius"]
-	var clearance: float = nearest["clearance"]
-	if clearance > radius * caution_clearance_radii:
+	var body: Node3D = hazard["body"]
+	var radius: float = hazard["radius"]
+	var clearance: float = hazard["clearance"]
+	var trajectory: Dictionary = hazard["trajectory"]
+	var predicted_clearance := float(trajectory["clearance"])
+	var time_to_cpa := float(trajectory["time"])
+	var future_cpa := bool(trajectory["future"])
+	var predicted_in_horizon := future_cpa and time_to_cpa <= prediction_horizon_s
+
+	# A future close pass can deserve attention before the ship enters the local
+	# proximity band. Otherwise retain the original range-gated behavior.
+	var predicted_hazard := predicted_in_horizon and predicted_clearance <= radius * caution_clearance_radii
+	if clearance > radius * caution_clearance_radii and not predicted_hazard:
 		warning_label.visible = false
 		return
 
@@ -51,22 +63,36 @@ func _process(delta: float) -> void:
 
 	var status := "PROXIMITY"
 	var font_color := Color(1.0, 0.78, 0.35, 0.95)
-	if clearance <= radius * danger_clearance_radii:
+	if predicted_in_horizon and predicted_clearance <= 0.0:
+		status = "IMPACT CORRIDOR"
+		font_color = Color(1.0, 0.24, 0.20, 0.99)
+	elif clearance <= radius * danger_clearance_radii:
 		status = "COLLISION RISK"
 		font_color = Color(1.0, 0.32, 0.28, 0.98)
+	elif predicted_in_horizon and predicted_clearance > radius * danger_clearance_radii:
+		status = "PROJECTED FLYBY"
+		font_color = Color(0.74, 0.94, 0.82, 0.96)
 	elif closing_speed > 8.0:
 		status = "RAPID APPROACH"
 
-	var eta_text := ""
-	if closing_speed > 0.5:
-		eta_text = "   •   CONTACT %.1fs" % (maxf(clearance, 0.0) / closing_speed)
+	var cpa_text := "TRAJECTORY HOLD"
+	if predicted_in_horizon:
+		if predicted_clearance <= 0.0:
+			cpa_text = "CPA %.1fs   •   IMPACT DEPTH %.1f u INSIDE SHELL" % [
+				time_to_cpa,
+				absf(predicted_clearance),
+			]
+		else:
+			cpa_text = "CPA %.1fs   •   PRED CLR %.1f u" % [time_to_cpa, predicted_clearance]
+	elif future_cpa:
+		cpa_text = "CPA >%.0fs   •   OUTSIDE PREDICTION WINDOW" % prediction_horizon_s
 
-	warning_label.text = "%s — %s   •   ALT %.1f u   •   CLOSING %.1f u/s%s" % [
+	warning_label.text = "%s — %s   •   ALT %.1f u   •   CLOSING %.1f u/s\n%s" % [
 		status,
 		_target_name(body),
 		maxf(clearance, 0.0),
 		closing_speed,
-		eta_text,
+		cpa_text,
 	]
 	warning_label.add_theme_color_override("font_color", font_color)
 	warning_label.visible = true
@@ -91,9 +117,35 @@ func _body_velocity(body: Node3D) -> Vector3:
 	return estimated_velocities.get(key, Vector3.ZERO)
 
 
-func _nearest_body() -> Dictionary:
-	var best: Dictionary = {}
-	var best_clearance := INF
+func _trajectory_for(body: Node3D, radius: float) -> Dictionary:
+	var relative_position := ship.global_position - body.global_position
+	var relative_velocity := ship.linear_velocity - _body_velocity(body)
+	var speed_squared := relative_velocity.length_squared()
+	if speed_squared < 0.0001:
+		return {
+			"time": 0.0,
+			"clearance": relative_position.length() - radius,
+			"future": false,
+		}
+
+	var raw_time := -relative_position.dot(relative_velocity) / speed_squared
+	var future := raw_time > 0.0
+	var time_to_cpa := maxf(raw_time, 0.0)
+	var predicted_position := relative_position + relative_velocity * time_to_cpa
+	return {
+		"time": time_to_cpa,
+		"clearance": predicted_position.length() - radius,
+		"future": future,
+	}
+
+
+func _relevant_body() -> Dictionary:
+	var nearest: Dictionary = {}
+	var nearest_clearance := INF
+	var predicted_best: Dictionary = {}
+	var predicted_rank := 99
+	var predicted_time := INF
+
 	for candidate in get_tree().get_nodes_in_group("scannable"):
 		if not candidate is Node3D:
 			continue
@@ -102,14 +154,35 @@ func _nearest_body() -> Dictionary:
 		if radius <= 0.0:
 			continue
 		var clearance := ship.global_position.distance_to(body.global_position) - radius
-		if clearance < best_clearance:
-			best_clearance = clearance
-			best = {
-				"body": body,
-				"radius": radius,
-				"clearance": clearance,
-			}
-	return best
+		var trajectory := _trajectory_for(body, radius)
+		var entry := {
+			"body": body,
+			"radius": radius,
+			"clearance": clearance,
+			"trajectory": trajectory,
+		}
+
+		if clearance < nearest_clearance:
+			nearest_clearance = clearance
+			nearest = entry
+
+		var future := bool(trajectory["future"])
+		var time_to_cpa := float(trajectory["time"])
+		var predicted_clearance := float(trajectory["clearance"])
+		if not future or time_to_cpa > prediction_horizon_s:
+			continue
+		if predicted_clearance > radius * caution_clearance_radii:
+			continue
+
+		# Direct shell intersections outrank non-impacting close passes; within the
+		# same class, surface the one that reaches closest approach first.
+		var rank := 0 if predicted_clearance <= 0.0 else 1
+		if rank < predicted_rank or (rank == predicted_rank and time_to_cpa < predicted_time):
+			predicted_rank = rank
+			predicted_time = time_to_cpa
+			predicted_best = entry
+
+	return predicted_best if not predicted_best.is_empty() else nearest
 
 
 func _body_radius(body: Node3D) -> float:
@@ -128,5 +201,5 @@ func _target_name(body: Node3D) -> String:
 
 func _layout_ui() -> void:
 	var size := get_viewport_rect().size
-	warning_label.position = Vector2(size.x * 0.20, 92.0)
-	warning_label.size = Vector2(size.x * 0.60, 30.0)
+	warning_label.position = Vector2(size.x * 0.18, 84.0)
+	warning_label.size = Vector2(size.x * 0.64, 54.0)
