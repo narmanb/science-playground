@@ -14,6 +14,7 @@ var previous_positions: Dictionary = {}
 var estimated_velocities: Dictionary = {}
 var avoidance_delta_v := 0.0
 var avoidance_deflection_deg := 0.0
+var avoidance_world_delta_v := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -32,6 +33,7 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED and is_node_ready():
 		_layout_ui()
+		queue_redraw()
 
 
 func _process(delta: float) -> void:
@@ -39,6 +41,8 @@ func _process(delta: float) -> void:
 		return
 	avoidance_delta_v = 0.0
 	avoidance_deflection_deg = 0.0
+	avoidance_world_delta_v = Vector3.ZERO
+	queue_redraw()
 	_update_body_velocities(delta)
 	var hazard := _relevant_body()
 	if hazard.is_empty():
@@ -88,6 +92,7 @@ func _process(delta: float) -> void:
 			if not escape.is_empty():
 				avoidance_delta_v = float(escape["delta_v"])
 				avoidance_deflection_deg = float(escape["deflection_deg"])
+				avoidance_world_delta_v = escape["delta_v_vector"] as Vector3
 				cpa_text = "CPA %.1fs   •   IMPACT DEPTH %.1f u   •   MIN ESC Δv %.1f u/s   •   DEFLECT %.1f°" % [
 					time_to_cpa,
 					absf(predicted_clearance),
@@ -113,6 +118,41 @@ func _process(delta: float) -> void:
 	]
 	warning_label.add_theme_color_override("font_color", font_color)
 	warning_label.visible = true
+
+
+func _draw() -> void:
+	if avoidance_world_delta_v.length_squared() <= 0.000001:
+		return
+	var camera := _camera()
+	if camera == null:
+		return
+
+	var delta_direction := avoidance_world_delta_v.normalized()
+	var camera_right := camera.global_basis.x
+	var camera_up := camera.global_basis.y
+	var camera_forward := -camera.global_basis.z
+	var screen_direction := Vector2(
+		delta_direction.dot(camera_right),
+		-delta_direction.dot(camera_up)
+	)
+
+	# A near-pure fore/aft correction has almost no 2D lateral projection. Keep
+	# the cue deterministic by placing it above/below the reticle according to the
+	# sign of its camera-forward component rather than allowing the arrow to vanish.
+	if screen_direction.length_squared() < 0.0025:
+		screen_direction = Vector2(0.0, -1.0 if delta_direction.dot(camera_forward) >= 0.0 else 1.0)
+	else:
+		screen_direction = screen_direction.normalized()
+
+	var center := get_viewport_rect().size * 0.5
+	var tip := center + screen_direction * 78.0
+	var tail := tip - screen_direction * 24.0
+	var perpendicular := Vector2(-screen_direction.y, screen_direction.x)
+	var cue_color := Color(0.45, 1.0, 0.70, 0.96)
+	draw_line(tail, tip, cue_color, 3.0)
+	draw_line(tip, tail + perpendicular * 9.0, cue_color, 3.0)
+	draw_line(tip, tail - perpendicular * 9.0, cue_color, 3.0)
+	draw_arc(tip, 11.0, 0.0, TAU, 24, cue_color, 1.5)
 
 
 func _update_body_velocities(delta: float) -> void:
@@ -143,7 +183,12 @@ func _trajectory_for(body: Node3D, radius: float) -> Dictionary:
 func _collision_cone_escape(body: Node3D, radius: float) -> Dictionary:
 	var relative_position := ship.global_position - body.global_position
 	var relative_velocity := ship.linear_velocity - _body_velocity(body)
-	return TrajectoryMathScript.collision_cone_escape(relative_position, relative_velocity, radius)
+	return TrajectoryMathScript.collision_cone_escape(
+		relative_position,
+		relative_velocity,
+		radius,
+		ship.global_basis.x
+	)
 
 
 func _relevant_body() -> Dictionary:
@@ -204,6 +249,10 @@ func _body_radius(body: Node3D) -> float:
 
 func _target_name(body: Node3D) -> String:
 	return str(body.get_meta("scan_name", body.name)).to_upper()
+
+
+func _camera() -> Camera3D:
+	return ship.get_node_or_null("CameraRig/Camera3D") as Camera3D
 
 
 func _layout_ui() -> void:
