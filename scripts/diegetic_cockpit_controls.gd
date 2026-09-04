@@ -6,6 +6,11 @@ class_name DiegeticCockpitControls
 @export var drag_radius_pixels := 125.0
 @export var button_radius_pixels := 72.0
 
+const CONTROL_FACE_Z := 0.070
+const CONTROL_RING_Z := 0.058
+const CONTROL_LABEL_Z := 0.090
+const CONTROL_PRESS_DEPTH := 0.040
+
 var ship: ShipController
 var camera: Camera3D
 
@@ -164,14 +169,14 @@ func _update_vector(screen_position: Vector2) -> void:
 	delta = delta.limit_length(1.0)
 	var value := Vector2(delta.x, -delta.y)
 	ship.set_touch_vector(value)
-	vector_knob.position = Vector3(value.x * 0.28, value.y * 0.28, -0.055)
+	vector_knob.position = Vector3(value.x * 0.28, value.y * 0.28, CONTROL_FACE_Z)
 
 
 func _update_attitude(screen_position: Vector2) -> void:
 	var center := _screen_position(attitude_root)
 	var delta := ((screen_position - center) / drag_radius_pixels).limit_length(1.0)
 	ship.set_touch_attitude(delta)
-	attitude_knob.position = Vector3(delta.x * 0.27, -delta.y * 0.27, -0.06)
+	attitude_knob.position = Vector3(delta.x * 0.27, -delta.y * 0.27, CONTROL_FACE_Z)
 	attitude_root.rotation_degrees.z = delta.x * 8.0
 
 
@@ -195,9 +200,9 @@ func _screen_position(control: Node3D) -> Vector2:
 func _build_materials() -> void:
 	dark_material = _material(Color(0.025, 0.045, 0.055), 0.78, 0.35)
 	metal_material = _material(Color(0.14, 0.19, 0.21), 0.52, 0.72)
-	cyan_dim_material = _emissive_material(Color(0.05, 0.35, 0.42), 1.2)
-	cyan_material = _emissive_material(Color(0.18, 0.88, 1.0), 3.0)
-	amber_material = _emissive_material(Color(1.0, 0.48, 0.08), 2.7)
+	cyan_dim_material = _emissive_material(Color(0.07, 0.46, 0.55), 1.8)
+	cyan_material = _emissive_material(Color(0.18, 0.88, 1.0), 3.5)
+	amber_material = _emissive_material(Color(1.0, 0.48, 0.08), 3.1)
 	red_material = _emissive_material(Color(1.0, 0.12, 0.06), 3.2)
 
 
@@ -210,7 +215,7 @@ func _build_hardware() -> void:
 	_add_ring(vector_root, 0.31, cyan_dim_material)
 	_add_cross(vector_root, 0.29)
 	vector_knob = _sphere(vector_root, 0.105, cyan_material)
-	vector_knob.position.z = -0.055
+	vector_knob.position.z = CONTROL_FACE_Z
 	_add_label(vector_root, "VECTOR", Vector3(0.0, 0.50, 0.0), 36, Color(0.45, 0.92, 1.0))
 
 	attitude_root = Node3D.new()
@@ -221,7 +226,7 @@ func _build_hardware() -> void:
 	_add_ring(attitude_root, 0.34, cyan_dim_material)
 	_add_ring(attitude_root, 0.23, metal_material)
 	attitude_knob = _sphere(attitude_root, 0.10, cyan_material)
-	attitude_knob.position.z = -0.06
+	attitude_knob.position.z = CONTROL_FACE_Z
 	_add_label(attitude_root, "ATTITUDE", Vector3(0.0, 0.50, 0.0), 34, Color(0.45, 0.92, 1.0))
 
 	vertical_root = Node3D.new()
@@ -230,7 +235,7 @@ func _build_hardware() -> void:
 	add_child(vertical_root)
 	_add_plate(vertical_root, Vector3(0.22, 0.72, 0.07), dark_material)
 	vertical_knob = _box(vertical_root, Vector3(0.18, 0.14, 0.09), amber_material)
-	vertical_knob.position.z = -0.055
+	vertical_knob.position.z = CONTROL_FACE_Z
 	_add_label(vertical_root, "RCS", Vector3(0.0, 0.47, 0.0), 28, Color(1.0, 0.64, 0.28))
 
 	roll_left = _hardware_button(Vector3(-0.48, -0.88, -2.18), "ROLL ◀", amber_material)
@@ -247,7 +252,7 @@ func _hardware_button(local_position: Vector3, label_text: String, material: Mat
 	add_child(root)
 	_add_plate(root, Vector3(0.38, 0.24, 0.07), dark_material)
 	var button := _box(root, Vector3(0.24, 0.13, 0.09), material)
-	button.position.z = -0.055
+	button.position.z = CONTROL_FACE_Z
 	button.set_meta("rest_z", button.position.z)
 	_add_label(root, label_text, Vector3(0.0, 0.20, 0.0), 25, Color(0.72, 0.92, 0.96))
 	return button
@@ -267,16 +272,16 @@ func _add_ring(parent: Node3D, radius: float, material: Material) -> MeshInstanc
 	instance.mesh = mesh
 	instance.material_override = material
 	instance.rotation_degrees.x = 90.0
-	instance.position.z = -0.055
+	instance.position.z = CONTROL_RING_Z
 	parent.add_child(instance)
 	return instance
 
 
 func _add_cross(parent: Node3D, radius: float) -> void:
 	var horizontal := _box(parent, Vector3(radius * 1.7, 0.012, 0.018), cyan_dim_material)
-	horizontal.position.z = -0.06
+	horizontal.position.z = CONTROL_RING_Z
 	var vertical := _box(parent, Vector3(0.012, radius * 1.7, 0.018), cyan_dim_material)
-	vertical.position.z = -0.06
+	vertical.position.z = CONTROL_RING_Z
 
 
 func _box(parent: Node3D, size: Vector3, material: Material) -> MeshInstance3D:
@@ -306,7 +311,7 @@ func _add_label(parent: Node3D, text_value: String, local_position: Vector3, fon
 	var label := Label3D.new()
 	label.text = text_value
 	label.position = local_position
-	label.position.z = -0.065
+	label.position.z = CONTROL_LABEL_Z
 	label.font_size = font_size
 	label.pixel_size = 0.0017
 	label.modulate = color
@@ -336,7 +341,7 @@ func _set_pressed(button: MeshInstance3D, pressed: bool) -> void:
 	if button == null:
 		return
 	var rest_z := float(button.get_meta("rest_z", button.position.z))
-	button.position.z = rest_z + (0.045 if pressed else 0.0)
+	button.position.z = rest_z - (CONTROL_PRESS_DEPTH if pressed else 0.0)
 
 
 func _pulse_control(button: MeshInstance3D) -> void:
@@ -344,7 +349,7 @@ func _pulse_control(button: MeshInstance3D) -> void:
 		return
 	var rest_z := float(button.get_meta("rest_z", button.position.z))
 	var tween := create_tween()
-	tween.tween_property(button, "position:z", rest_z + 0.055, 0.055)
+	tween.tween_property(button, "position:z", rest_z - CONTROL_PRESS_DEPTH, 0.055)
 	tween.tween_property(button, "position:z", rest_z, 0.10)
 
 
