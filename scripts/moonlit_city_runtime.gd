@@ -3,20 +3,21 @@ class_name MoonlitCityRuntime
 
 
 func _build_moon() -> void:
-	# Compose the moon for the actual cockpit view: low enough to clear the canopy
-	# crossbar, left of the flight avenue, and large enough to read immediately on
-	# a phone without becoming a nearby-looking object.
-	var moon_position := city_origin + Vector3(-250.0, 250.0, -900.0)
+	# Compose the moon in the open central flight avenue so it is immediately
+	# visible through the cockpit instead of being lost behind towers/canopy.
+	# Its large distance keeps it reading as a sky object while the diameter is
+	# deliberately exaggerated enough to remain obvious on a phone display.
+	var moon_position := city_origin + Vector3(-90.0, 170.0, -1050.0)
 	var moon_mesh := SphereMesh.new()
-	moon_mesh.radius = 95.0
-	moon_mesh.height = 190.0
+	moon_mesh.radius = 110.0
+	moon_mesh.height = 220.0
 	moon_mesh.radial_segments = 48
 	moon_mesh.rings = 28
 	var moon := MeshInstance3D.new()
 	moon.name = "FullMoon"
 	moon.mesh = moon_mesh
 	moon.position = moon_position
-	moon.material_override = _emissive(Color(0.76, 0.84, 1.0), 1.75)
+	moon.material_override = _emissive(Color(0.78, 0.86, 1.0), 1.9)
 	add_child(moon)
 
 	var moon_light := DirectionalLight3D.new()
