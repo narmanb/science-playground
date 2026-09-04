@@ -10,12 +10,14 @@ const CONTROL_FACE_Z := 0.070
 const CONTROL_RING_Z := 0.058
 const CONTROL_LABEL_Z := 0.090
 const CONTROL_PRESS_DEPTH := 0.040
+const CONTROL_SPINDLE_Z := 0.045
 
 var ship: ShipController
 var camera: Camera3D
 
 var vector_root: Node3D
 var vector_knob: MeshInstance3D
+var attitude_panel: Node3D
 var attitude_root: Node3D
 var attitude_knob: MeshInstance3D
 var vertical_root: Node3D
@@ -177,6 +179,8 @@ func _update_attitude(screen_position: Vector2) -> void:
 	var delta := ((screen_position - center) / drag_radius_pixels).limit_length(1.0)
 	ship.set_touch_attitude(delta)
 	attitude_knob.position = Vector3(delta.x * 0.27, -delta.y * 0.27, CONTROL_FACE_Z)
+	# Only the inner gimbal rotates. The mounting plate, outer bezel, and label
+	# remain fixed like real cockpit hardware.
 	attitude_root.rotation_degrees.z = delta.x * 8.0
 
 
@@ -214,20 +218,32 @@ func _build_hardware() -> void:
 	_add_plate(vector_root, Vector3(0.82, 0.82, 0.08), dark_material)
 	_add_ring(vector_root, 0.31, cyan_dim_material)
 	_add_cross(vector_root, 0.29)
-	vector_knob = _sphere(vector_root, 0.105, cyan_material)
+	var vector_spindle := _cylinder(vector_root, 0.145, 0.13, metal_material)
+	vector_spindle.position.z = CONTROL_SPINDLE_Z
+	vector_knob = _sphere(vector_root, 0.112, cyan_material)
 	vector_knob.position.z = CONTROL_FACE_Z
 	_add_label(vector_root, "VECTOR", Vector3(0.0, 0.50, 0.0), 36, Color(0.45, 0.92, 1.0))
 
+	# Fixed panel and outer bezel.
+	attitude_panel = Node3D.new()
+	attitude_panel.name = "AttitudePanel"
+	attitude_panel.position = Vector3(1.26, -0.52, -2.32)
+	add_child(attitude_panel)
+	_add_plate(attitude_panel, Vector3(0.82, 0.82, 0.08), dark_material)
+	_add_ring(attitude_panel, 0.34, cyan_dim_material)
+	_add_label(attitude_panel, "ATTITUDE", Vector3(0.0, 0.50, 0.0), 34, Color(0.45, 0.92, 1.0))
+
+	# Moving inner gimbal. Keeping attitude_root as this moving assembly also keeps
+	# CI/test hooks and touch projection centered on the actual manipulable part.
 	attitude_root = Node3D.new()
-	attitude_root.name = "AttitudeControl"
-	attitude_root.position = Vector3(1.26, -0.52, -2.32)
-	add_child(attitude_root)
-	_add_plate(attitude_root, Vector3(0.82, 0.82, 0.08), dark_material)
-	_add_ring(attitude_root, 0.34, cyan_dim_material)
+	attitude_root.name = "AttitudeGimbal"
+	attitude_panel.add_child(attitude_root)
 	_add_ring(attitude_root, 0.23, metal_material)
-	attitude_knob = _sphere(attitude_root, 0.10, cyan_material)
+	_add_cross(attitude_root, 0.20)
+	var attitude_spindle := _cylinder(attitude_root, 0.14, 0.13, metal_material)
+	attitude_spindle.position.z = CONTROL_SPINDLE_Z
+	attitude_knob = _sphere(attitude_root, 0.11, cyan_material)
 	attitude_knob.position.z = CONTROL_FACE_Z
-	_add_label(attitude_root, "ATTITUDE", Vector3(0.0, 0.50, 0.0), 34, Color(0.45, 0.92, 1.0))
 
 	vertical_root = Node3D.new()
 	vertical_root.name = "RCSVertical"
@@ -290,6 +306,20 @@ func _box(parent: Node3D, size: Vector3, material: Material) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.mesh = mesh
 	instance.material_override = material
+	parent.add_child(instance)
+	return instance
+
+
+func _cylinder(parent: Node3D, radius: float, height: float, material: Material) -> MeshInstance3D:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius * 1.08
+	mesh.height = height
+	mesh.radial_segments = 20
+	var instance := MeshInstance3D.new()
+	instance.mesh = mesh
+	instance.material_override = material
+	instance.rotation_degrees.x = 90.0
 	parent.add_child(instance)
 	return instance
 
