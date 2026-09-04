@@ -44,3 +44,18 @@ func _build_moon() -> void:
 		light.light_color = Color(0.15, 0.70, 1.0)
 		light.shadow_enabled = false
 		add_child(light)
+
+	if OS.get_environment(CITY_CAPTURE_ENV) == "1":
+		_trace_moon_projection.call_deferred(moon)
+
+
+func _trace_moon_projection(moon: MeshInstance3D) -> void:
+	for _frame in 3:
+		await get_tree().process_frame
+	var camera := get_node_or_null("../Ship/CameraRig/Camera3D") as Camera3D
+	if camera == null or moon == null:
+		print("CITY_MOON_TRACE missing camera-or-moon")
+		return
+	var behind := camera.is_position_behind(moon.global_position)
+	var screen := camera.unproject_position(moon.global_position) if not behind else Vector2(-1.0, -1.0)
+	print("CITY_MOON_TRACE world=%s behind=%s screen=%s distance=%.2f visible=%s" % [moon.global_position, behind, screen, camera.global_position.distance_to(moon.global_position), moon.visible])
