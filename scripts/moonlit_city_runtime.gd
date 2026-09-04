@@ -7,8 +7,8 @@ func _build_moon() -> void:
 	# direction from the settled cockpit camera. Once positioned it remains fixed
 	# in the world; it is not a camera-attached HUD decoration.
 	var moon_mesh := SphereMesh.new()
-	moon_mesh.radius = 110.0
-	moon_mesh.height = 220.0
+	moon_mesh.radius = 44.0
+	moon_mesh.height = 88.0
 	moon_mesh.radial_segments = 48
 	moon_mesh.rings = 28
 	var moon := MeshInstance3D.new()
