@@ -14,7 +14,7 @@
 [ext_resource type="Script" path="res://scripts/science_scan_profile.gd" id="12_scan_profile"]
 [ext_resource type="Script" path="res://scripts/science_log_hud.gd" id="13_science_log"]
 [ext_resource type="Script" path="res://scripts/stellar_lighting_controller.gd" id="14_stellar_light"]
-[ext_resource type="Script" path="res://scripts/science_objective_hud.gd" id="15_science_objective"]
+[ext_resource type="Script" path="res://scripts/science_objective_hud_runtime.gd" id="15_science_objective"]
 [ext_resource type="Script" path="res://scripts/diegetic_cockpit_controls.gd" id="16_controls"]
 [ext_resource type="Script" path="res://scripts/moonlit_city.gd" id="17_city"]
 
