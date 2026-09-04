@@ -49,7 +49,7 @@ func _build_moon() -> void:
 func _build_moon_texture() -> ImageTexture:
 	var image := Image.create(MOON_TEXTURE_SIZE, MOON_TEXTURE_SIZE, false, Image.FORMAT_RGBA8)
 	image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	var craters := [
+	var craters: Array[Vector3] = [
 		Vector3(-0.38, -0.16, 0.15),
 		Vector3(0.33, -0.31, 0.11),
 		Vector3(0.20, 0.22, 0.17),
@@ -58,7 +58,7 @@ func _build_moon_texture() -> ImageTexture:
 		Vector3(-0.52, 0.30, 0.065),
 		Vector3(0.02, -0.55, 0.085),
 	]
-	var maria := [
+	var maria: Array[Vector3] = [
 		Vector3(-0.18, -0.08, 0.34),
 		Vector3(0.38, 0.18, 0.24),
 		Vector3(-0.34, 0.40, 0.19),
@@ -81,15 +81,15 @@ func _build_moon_texture() -> ImageTexture:
 			shade += sin(nx * 11.0 + ny * 6.0) * 0.018
 			shade += sin(nx * 5.0 - ny * 14.0) * 0.012
 
-			for patch in maria:
-				var patch_distance := Vector2(nx - patch.x, ny - patch.y).length()
+			for patch: Vector3 in maria:
+				var patch_distance: float = Vector2(nx - patch.x, ny - patch.y).length()
 				if patch_distance < patch.z:
 					shade -= (1.0 - patch_distance / patch.z) * 0.105
 
-			for crater in craters:
-				var crater_distance := Vector2(nx - crater.x, ny - crater.y).length()
+			for crater: Vector3 in craters:
+				var crater_distance: float = Vector2(nx - crater.x, ny - crater.y).length()
 				if crater_distance < crater.z:
-					var normalized_distance := crater_distance / crater.z
+					var normalized_distance: float = crater_distance / crater.z
 					shade -= (1.0 - normalized_distance) * 0.16
 					if normalized_distance > 0.72:
 						shade += (normalized_distance - 0.72) / 0.28 * 0.045
