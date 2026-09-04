@@ -1,6 +1,17 @@
 extends FlightHUD
 class_name DiegeticFlightHUD
 
+const LEGACY_CONTROL_NAMES := [
+	"VectorCageRing",
+	"VectorPuck",
+	"AttitudeRing",
+	"AttitudeInnerRing",
+	"InertialDampingDial",
+	"InertialDampingBezel",
+	"LockSwitchBase",
+	"LockSwitchHandle",
+]
+
 
 func _ready() -> void:
 	super._ready()
@@ -17,6 +28,11 @@ func _ready() -> void:
 		lock_button.visible = false
 	if scan_button != null:
 		scan_button.visible = false
+
+	# The first Blender cockpit blockout contained non-interactive mock versions
+	# of controls that are now genuine touchable 3D hardware. Hide only those
+	# named meshes at runtime so one visible control always means one real input.
+	_hide_legacy_cockpit_controls()
 	queue_redraw()
 
 
@@ -55,3 +71,17 @@ func _draw() -> void:
 				target_color,
 				3.0
 			)
+
+
+func _hide_legacy_cockpit_controls() -> void:
+	var cockpit := get_node_or_null("../../Ship/CameraRig/CockpitModel")
+	if cockpit == null:
+		return
+	_hide_named_descendants(cockpit)
+
+
+func _hide_named_descendants(node: Node) -> void:
+	if node is Node3D and node.name in LEGACY_CONTROL_NAMES:
+		(node as Node3D).visible = false
+	for child in node.get_children():
+		_hide_named_descendants(child)
