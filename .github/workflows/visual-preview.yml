@@ -52,6 +52,20 @@ jobs:
             file "build/preview/${image}.png"
           done
 
+      - name: Render moonlit city and physical-control previews
+        env:
+          SCIENCE_PLAYGROUND_CITY_CAPTURE: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          xvfb-run -a godot \
+            --path . \
+            --rendering-method gl_compatibility \
+            --resolution 1280x720
+          for image in city controls; do
+            test -s "build/preview/${image}.png"
+            file "build/preview/${image}.png"
+          done
+
       - name: Upload visual previews
         if: always()
         uses: actions/upload-artifact@v4
