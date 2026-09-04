@@ -1,6 +1,10 @@
 extends Node3D
 class_name MoonlitCity
 
+const SYSTEM_CAPTURE_ENV := "SCIENCE_PLAYGROUND_CAPTURE"
+const CITY_CAPTURE_ENV := "SCIENCE_PLAYGROUND_CITY_CAPTURE"
+const CAPTURE_DIR := "res://build/preview"
+
 @export var city_origin := Vector3(310.0, -40.0, 20.0)
 @export var city_seed := 20491
 @export var traffic_count := 28
@@ -15,15 +19,15 @@ var ground_material: StandardMaterial3D
 
 
 func _ready() -> void:
+	# The legacy science/hazard screenshot suite is intentionally kept light and
+	# deterministic. Dense city rendering has its own second capture launch below.
+	# Normal Android gameplay builds the city exactly as usual.
+	if OS.get_environment(SYSTEM_CAPTURE_ENV) == "1":
+		visible = false
+		set_process(false)
+		return
+
 	rng.seed = city_seed
-	# Visual CI runs on a software renderer, so frame time can vary dramatically
-	# once the dense city is present. Freeze orbital pivots only in capture mode;
-	# the numerical trajectory tests already cover moving-target math separately.
-	# Normal Android gameplay retains live planetary orbits.
-	if OS.get_environment("SCIENCE_PLAYGROUND_CAPTURE") == "1":
-		var orbital_system := get_node_or_null("../AlienSystem")
-		if orbital_system != null:
-			orbital_system.set_process(false)
 	_build_materials()
 	_tune_night_environment()
 	_build_ground_and_roads()
@@ -31,6 +35,9 @@ func _ready() -> void:
 	_build_bridges()
 	_build_moon()
 	_build_traffic()
+
+	if OS.get_environment(CITY_CAPTURE_ENV) == "1":
+		_capture_city_preview.call_deferred()
 
 
 func _process(delta: float) -> void:
@@ -50,6 +57,60 @@ func _process(delta: float) -> void:
 			vehicle.position.x = city_origin.x - 560.0
 		elif direction.x < -0.5 and relative.x < -560.0:
 			vehicle.position.x = city_origin.x + 560.0
+
+
+func _capture_city_preview() -> void:
+	# Allow imported cockpit meshes, the city, lighting, and HUD cleanup to settle.
+	for _frame in 10:
+		await get_tree().process_frame
+
+	var ship := get_node_or_null("../Ship") as ShipController
+	if ship == null:
+		push_error("City visual QA could not find the player ship.")
+		get_tree().quit(1)
+		return
+	ship.freeze = true
+	ship.linear_velocity = Vector3.ZERO
+	ship.angular_velocity = Vector3.ZERO
+	ship.look_at(city_origin + Vector3(0.0, 28.0, -520.0), Vector3.UP)
+
+	for _frame in 4:
+		await get_tree().process_frame
+	if not _save_view(CAPTURE_DIR + "/city.png"):
+		get_tree().quit(1)
+		return
+
+	# Give the real 3D cockpit controls an obvious CI-only displaced pose. This
+	# does not command the ship; it proves visually that the hardware can move
+	# rather than behaving like another painted-on overlay.
+	var controls := get_node_or_null("../Ship/CameraRig/DiegeticCockpitControls") as DiegeticCockpitControls
+	if controls == null or controls.vector_knob == null or controls.attitude_knob == null or controls.vertical_knob == null:
+		push_error("City visual QA could not find the interactive cockpit hardware.")
+		get_tree().quit(1)
+		return
+	controls.vector_knob.position = Vector3(0.22, 0.15, -0.055)
+	controls.attitude_knob.position = Vector3(-0.19, -0.12, -0.06)
+	controls.attitude_root.rotation_degrees.z = -7.0
+	controls.vertical_knob.position.y = 0.22
+	for _frame in 2:
+		await get_tree().process_frame
+	if not _save_view(CAPTURE_DIR + "/controls.png"):
+		get_tree().quit(1)
+		return
+
+	get_tree().quit()
+
+
+func _save_view(path: String) -> bool:
+	var absolute_dir := ProjectSettings.globalize_path(CAPTURE_DIR)
+	DirAccess.make_dir_recursive_absolute(absolute_dir)
+	var image := get_viewport().get_texture().get_image()
+	var error := image.save_png(path)
+	if error != OK:
+		push_error("Failed to save city preview %s: %s" % [path, error_string(error)])
+		return false
+	print("Saved city preview to %s" % path)
+	return true
 
 
 func _build_materials() -> void:
