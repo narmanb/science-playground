@@ -33,7 +33,7 @@ func _process(delta: float) -> void:
 		var direction: Vector3 = entry["direction"]
 		var speed: float = float(entry["speed"])
 		vehicle.position += direction * speed * delta
-		var relative := vehicle.position - city_origin
+		var relative: Vector3 = vehicle.position - city_origin
 		if direction.z < -0.5 and relative.z < -790.0:
 			vehicle.position.z = city_origin.z + 150.0
 		elif direction.z > 0.5 and relative.z > 170.0:
@@ -139,19 +139,20 @@ func _build_towers() -> void:
 			beacon.name = "Beacon_%d_%d" % [row, column]
 
 	# Four taller landmarks frame the skyline and make roll immediately obvious.
-	for landmark in [
+	for landmark_value in [
 		Vector3(-360.0, 0.0, -360.0),
 		Vector3(360.0, 0.0, -430.0),
 		Vector3(-440.0, 0.0, -690.0),
 		Vector3(430.0, 0.0, -720.0),
 	]:
+		var landmark: Vector3 = landmark_value
 		var height := 235.0
-		var position := city_origin + landmark
-		position.y = city_origin.y + height * 0.5
-		_box(Vector3(42.0, height, 42.0), position, building_materials[2])
-		_box(Vector3(32.0, 3.0, 43.0), Vector3(position.x, city_origin.y + height * 0.72, position.z + 21.6), window_material)
-		_box(Vector3(3.0, 16.0, 3.0), Vector3(position.x, city_origin.y + height + 8.0, position.z), beacon_material)
-		_add_static_box(position, Vector3(42.0, height, 42.0), "LandmarkCollision")
+		var landmark_position: Vector3 = city_origin + landmark
+		landmark_position.y = city_origin.y + height * 0.5
+		_box(Vector3(42.0, height, 42.0), landmark_position, building_materials[2])
+		_box(Vector3(32.0, 3.0, 43.0), Vector3(landmark_position.x, city_origin.y + height * 0.72, landmark_position.z + 21.6), window_material)
+		_box(Vector3(3.0, 16.0, 3.0), Vector3(landmark_position.x, city_origin.y + height + 8.0, landmark_position.z), beacon_material)
+		_add_static_box(landmark_position, Vector3(42.0, height, 42.0), "LandmarkCollision")
 
 
 func _build_bridges() -> void:
