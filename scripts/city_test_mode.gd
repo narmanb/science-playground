@@ -60,23 +60,7 @@ func _activate_local_city() -> void:
 		if flight_hud != null:
 			flight_hud.navigation_hud = null
 
-	_reframe_moon(main)
-
-
-func _reframe_moon(main: Node) -> void:
-	var city := main.get_node_or_null("MoonlitCity") as MoonlitCity
-	if city == null:
-		return
-	var moon := city.get_node_or_null("FullMoon") as MeshInstance3D
-	if moon != null:
-		moon.position = city.city_origin + Vector3(-240.0, 300.0, -520.0)
-		var sphere := moon.mesh as SphereMesh
-		if sphere != null:
-			sphere.radius = 88.0
-			sphere.height = 176.0
-
-	var moon_light := city.get_node_or_null("MoonKeyLight") as DirectionalLight3D
-	if moon_light != null:
-		if moon != null:
-			moon_light.position = moon.position
-		moon_light.look_at(city.city_origin + Vector3(0.0, 18.0, -320.0), Vector3.UP)
+	# Moon composition now belongs exclusively to MoonlitCityRuntime. The previous
+	# hardcoded reframe here silently overwrote the runtime skyline placement a few
+	# frames after startup, which made visual tuning impossible and could put the
+	# moon behind cockpit/city geometry.
