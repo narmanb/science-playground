@@ -16,6 +16,14 @@ var ground_material: StandardMaterial3D
 
 func _ready() -> void:
 	rng.seed = city_seed
+	# Visual CI runs on a software renderer, so frame time can vary dramatically
+	# once the dense city is present. Freeze orbital pivots only in capture mode;
+	# the numerical trajectory tests already cover moving-target math separately.
+	# Normal Android gameplay retains live planetary orbits.
+	if OS.get_environment("SCIENCE_PLAYGROUND_CAPTURE") == "1":
+		var orbital_system := get_node_or_null("../AlienSystem")
+		if orbital_system != null:
+			orbital_system.set_process(false)
 	_build_materials()
 	_tune_night_environment()
 	_build_ground_and_roads()
@@ -186,8 +194,9 @@ func _build_moon() -> void:
 	moon_light.shadow_enabled = true
 	moon_light.directional_shadow_max_distance = 500.0
 	moon_light.position = moon_position
-	moon_light.look_at(city_origin + Vector3(0.0, 10.0, -300.0), Vector3.UP)
+	# Node3D.look_at requires the node to be inside the tree.
 	add_child(moon_light)
+	moon_light.look_at(city_origin + Vector3(0.0, 10.0, -300.0), Vector3.UP)
 
 	# A handful of actual lamps supplement emissive architecture without turning
 	# the mobile scene into hundreds of dynamic lights.
